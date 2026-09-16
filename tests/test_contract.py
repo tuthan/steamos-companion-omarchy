@@ -4,14 +4,21 @@ import json
 import unittest
 from pathlib import Path
 
+from client import client_core
+
 
 ROOT = Path(__file__).parents[1]
 
 
 class ContractTests(unittest.TestCase):
+    def test_companion_namespace_constants_are_pinned(self):
+        self.assertEqual(client_core.PAIRING_PREFIX, "steamos-companion:v1:")
+        self.assertEqual(client_core.SAS_SALT_PREFIX, b"steamos-companion:v1:pairing-sas:")
+        self.assertEqual(client_core.DISCOVERY_SERVER_PREFIX, "SteamOSCompanion/1")
+
     def test_pinned_contract_bundle_is_complete_and_versioned(self):
         schema = json.loads((ROOT / "protocol" / "schema.json").read_text())
-        self.assertEqual(schema["$id"], "https://steamos-remote.local/protocol/v1/schema.json")
+        self.assertEqual(schema["$id"], "https://steamos-companion.local/protocol/v1/schema.json")
         fixtures = sorted((ROOT / "protocol" / "fixtures").glob("*.json"))
         self.assertGreaterEqual(len(fixtures), 6)
         for fixture in fixtures:
@@ -26,7 +33,7 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(manifest["barWidget"]["allowMultiple"])
 
     def test_remote_icon_is_packaged_and_sunshine_is_capability_gated(self):
-        icon = ROOT / "assets" / "steamos-remote-icon.svg"
+        icon = ROOT / "assets" / "steamos-companion-icon.svg"
         self.assertTrue(icon.is_file())
         self.assertIn("#f2f4f5", icon.read_text())
         self.assertNotIn("linearGradient", icon.read_text())

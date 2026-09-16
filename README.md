@@ -1,30 +1,32 @@
-# SteamOS Remote — Omarchy client
+# SteamOS Companion — Omarchy client
 
-SteamOS Remote is an Omarchy bar widget for a paired SteamOS Remote Decky
+SteamOS Companion is an Omarchy bar widget for a paired SteamOS Companion Decky
 host. It discovers and pairs with the host, shows its status, wakes it, sends
 power commands, and provides display recovery. Sunshine status and restart are
 shown only when monitoring is enabled on the host.
 
 The Decky host is maintained separately in
-[tuthan/decky-steam-remote](https://github.com/tuthan/decky-steam-remote).
+[tuthan/steamos-companion-decky](https://github.com/tuthan/steamos-companion-decky).
 
-- Plugin ID: `io.github.tuthan.steamosremote`
+SteamOS Companion is an independent open-source project and is not affiliated with or endorsed by Valve Corporation.
+
+- Plugin ID: `io.github.tuthan.steamoscompanion`
 - License: [MIT](LICENSE)
 
 ## Screenshots
 
-![SteamOS Remote Omarchy host view](preview.png)
+![SteamOS Companion Omarchy host view](preview.png)
 
-![SteamOS Remote Omarchy display view](assets/res.png)
+![SteamOS Companion Omarchy display view](assets/res.png)
 
-![SteamOS Remote Omarchy settings view](assets/settings.png)
+![SteamOS Companion Omarchy settings view](assets/settings.png)
 
 ## Install
 
 Install from a reviewed checkout or repository:
 
 ```sh
-omarchy plugin add https://github.com/tuthan/omarchy-steam-remote.git --enable
+omarchy plugin add https://github.com/tuthan/steamos-companion-omarchy.git --enable
 ```
 
 The Decky host must be installed and running before pairing.
@@ -54,7 +56,7 @@ the paired host's certificate fingerprint. Compare the pairing codes on both
 devices before approving a new host.
 
 Credentials and pending requests are stored under
-`${XDG_STATE_HOME:-~/.local/state}/steamos-remote` in private files. Symlinked
+`${XDG_STATE_HOME:-~/.local/state}/steamos-companion` in private files. Symlinked
 state directories/ancestors and unsafe shared paths are refused. Network data
 and helper output have explicit size limits; oversized responses are rejected.
 
@@ -75,13 +77,13 @@ To install the current checkout for testing, sync it into Omarchy’s real
 plugin directory and rescan the shell:
 
 ```sh
-plugin_dir="$HOME/.config/omarchy/plugins/io.github.tuthan.steamosremote"
+plugin_dir="$HOME/.config/omarchy/plugins/io.github.tuthan.steamoscompanion"
 mkdir -p "$(dirname "$plugin_dir")"
 if [ -L "$plugin_dir" ]; then unlink "$plugin_dir"; fi
 mkdir -p "$plugin_dir"
 rsync -a --delete --exclude='.git/' ./ "$plugin_dir"/
 omarchy-shell shell rescanPlugins
-omarchy plugin enable io.github.tuthan.steamosremote --section right
+omarchy plugin enable io.github.tuthan.steamoscompanion --section right
 ```
 
 Repeat the `rsync` and rescan commands after changes.
@@ -89,8 +91,8 @@ Repeat the `rsync` and rescan commands after changes.
 ## Remove
 
 ```sh
-omarchy plugin disable io.github.tuthan.steamosremote
-omarchy plugin remove io.github.tuthan.steamosremote
+omarchy plugin disable io.github.tuthan.steamoscompanion
+omarchy plugin remove io.github.tuthan.steamoscompanion
 ```
 
 Removing the plugin does not remove its pairing credentials. Use **Forget

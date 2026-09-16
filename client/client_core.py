@@ -25,13 +25,13 @@ from urllib.parse import urlsplit
 
 PROTOCOL_VERSION = 1
 MAX_BODY_BYTES = 256 * 1024
-PAIRING_PREFIX = "steamos-remote:v1:"
+PAIRING_PREFIX = "steamos-companion:v1:"
 DISCOVERY_DEFAULT_PORT = 18443
 DISCOVERY_MAX_NETWORK_ADDRESSES = 1024
 DISCOVERY_MAX_ADDRESSES = 1024
 DISCOVERY_MAX_RESPONSE_BYTES = 16 * 1024
 DISCOVERY_CONNECT_TIMEOUT = 0.35
-DISCOVERY_SERVER_PREFIX = "SteamOSRemote/1"
+DISCOVERY_SERVER_PREFIX = "SteamOSCompanion/1"
 PAIRING_REQUEST_TIMEOUT_SECONDS = 120
 PAIRING_EXCHANGE_TIMEOUT = 6.0
 DEFAULT_TIMEOUT = 5.0
@@ -44,7 +44,7 @@ ALLOWED_SCOPES = frozenset({"status.read", "power.control", "display.control", "
 # holding a different certificate therefore cannot make both screens agree, and
 # scrypt makes searching the 10^8 code space infeasible inside the 120-second
 # request window.
-SAS_SALT_PREFIX = b"steamos-remote:v1:pairing-sas:"
+SAS_SALT_PREFIX = b"steamos-companion:v1:pairing-sas:"
 SAS_NONCE_BYTES = 16
 SAS_SCRYPT_N = 2 ** 14
 SAS_SCRYPT_R = 8
@@ -313,7 +313,7 @@ def _probe_discovery_candidate(host: str, port: int) -> dict[str, Any] | None:
 
 
 def discover_hosts(port: Any = DISCOVERY_DEFAULT_PORT) -> dict[str, Any]:
-    """Find SteamOS Remote HTTPS listeners on the client's active IPv4 LANs."""
+    """Find SteamOS Companion HTTPS listeners on the client's active IPv4 LANs."""
     port = validate_discovery_port(port)
     networks = _local_ipv4_networks()
     targets, skipped, truncated = _discovery_targets(networks)
@@ -346,7 +346,7 @@ def discover_hosts(port: Any = DISCOVERY_DEFAULT_PORT) -> dict[str, Any]:
         elif not targets:
             result["reason"] = "The local network is larger than the bounded discovery scan"
         else:
-            result["reason"] = f"No SteamOS Remote listener responded on port {port}"
+            result["reason"] = f"No SteamOS Companion listener responded on port {port}"
     return result
 
 
@@ -405,7 +405,7 @@ def _safe_dir(path: Path) -> None:
 
 def _default_state_root() -> Path:
     base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
-    return Path(base) / "steamos-remote"
+    return Path(base) / "steamos-companion"
 
 
 def _check_private(info, label: str) -> None:
@@ -698,7 +698,7 @@ class PinnedTransport:
                     raise ClientError("host TLS channel binding is unavailable; update Decky and Omarchy before pairing") from exc
                 if not isinstance(channel_binding, bytes) or len(channel_binding) < 12:
                     raise ClientError("host TLS channel binding is unavailable; select the host again and retry")
-                headers["X-SteamOS-Remote-TLS-Binding"] = base64.urlsafe_b64encode(channel_binding).decode("ascii")
+                headers["X-SteamOS-Companion-TLS-Binding"] = base64.urlsafe_b64encode(channel_binding).decode("ascii")
             if body is not None:
                 headers["Content-Type"] = "application/json"
                 headers["Content-Length"] = str(len(encoded))
@@ -997,7 +997,7 @@ class ClientCore:
     def pair_start(self, host: Any, client_name: Any = "Omarchy client", scopes: Any = None) -> dict[str, Any]:
         """Open a pairing request against a selected, pinned listener."""
         if not isinstance(host, dict):
-            raise ClientError("select a discovered SteamOS Remote host first")
+            raise ClientError("select a discovered SteamOS Companion host first")
         endpoint = validate_endpoint(host.get("endpoint"))
         fingerprint = normalize_pin(host.get("certificate_fingerprint"))
         host_id = host.get("host_id")

@@ -1,7 +1,7 @@
-# SteamOS Remote protocol v1
+# SteamOS Companion protocol v1
 
 This directory is the pinned client copy of the v1 contract. The Decky project
-under `/home/hvo/Projects/decky-steam-remote/protocol/` remains the source of
+under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source of
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
@@ -21,7 +21,7 @@ nonce and its own certificate fingerprint. Both sides compute:
 
 ```
 code = scrypt(nonce,
-              salt = b"steamos-remote:v1:pairing-sas:" + fingerprint,
+              salt = b"steamos-companion:v1:pairing-sas:" + fingerprint,
               n = 2**14, r = 8, p = 1, dklen = 8)
        interpreted big-endian, modulo 10**8, zero-padded to 8 digits
 ```
@@ -41,7 +41,7 @@ not have this property: a rogue listener could forward the received code to the
 real host over its own connection and both screens would agree. That field is
 now rejected by the host with `400 pairing_method_unsupported`.
 
-The client also sends a TLS 1.2 `X-SteamOS-Remote-TLS-Binding` header. Decky
+The client also sends a TLS 1.2 `X-SteamOS-Companion-TLS-Binding` header. Decky
 derives the same value from the accepted socket and rejects a mismatch before
 creating the pending request. The host creates a pending request and the owner
 must approve it in Decky. The first pending response also contains a

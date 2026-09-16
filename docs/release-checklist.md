@@ -89,9 +89,9 @@ These are workstation and live-host reads. They do not close any M5 hardware gat
 
 ## Plugin identities
 
-- Omarchy: `io.github.tuthan.steamosremote` / `0.5.2`
-- Decky: `steamos-remote-host` / `0.5.2`
-- Protocol: `steamos-remote:v1`
+- Omarchy: `io.github.tuthan.steamoscompanion` / `0.5.2`
+- Decky: `steamos-companion-host` / `0.5.2`
+- Protocol: `steamos-companion:v1`
 
 ## Hardware gates still open
 

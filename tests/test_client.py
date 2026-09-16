@@ -161,7 +161,7 @@ class ClientTests(unittest.TestCase):
                 "POST", "/v1/pair/request", {"verification_code": "12345678"}
             )
         self.assertEqual(result["state"], "pending")
-        self.assertIn("X-SteamOS-Remote-TLS-Binding", connection.headers)
+        self.assertIn("X-SteamOS-Companion-TLS-Binding", connection.headers)
         self.assertEqual(connection.sock.cb_type, "tls-unique")
 
     def test_power_keeps_fixed_action_and_generates_request_id(self):
@@ -392,9 +392,9 @@ class ClientTests(unittest.TestCase):
         relay = "sha256:" + "22" * 32
         # Known answers, pinned identically in the Decky host test suite so the
         # two implementations cannot drift apart without a test failing.
-        self.assertEqual(client_core.derive_pairing_code(nonce, genuine), "60594578")
-        self.assertEqual(client_core.derive_pairing_code(nonce, "sha256:" + "a" * 64), "04164056")
-        self.assertEqual(client_core.derive_pairing_code(nonce, "sha256:" + "b" * 64), "11987869")
+        self.assertEqual(client_core.derive_pairing_code(nonce, genuine), "21800881")
+        self.assertEqual(client_core.derive_pairing_code(nonce, "sha256:" + "a" * 64), "39693759")
+        self.assertEqual(client_core.derive_pairing_code(nonce, "sha256:" + "b" * 64), "67630249")
         self.assertNotEqual(
             client_core.derive_pairing_code(nonce, genuine),
             client_core.derive_pairing_code(nonce, relay),
@@ -517,7 +517,7 @@ class ClientTests(unittest.TestCase):
                 "port": 18443,
                 "endpoint": "https://192.168.50.24:18443",
                 "certificate_fingerprint": PIN,
-                "server": "SteamOSRemote/1 Python/test",
+                "server": "SteamOSCompanion/1 Python/test",
             }
             FakeTransport.responses = [
                 {"protocol_version": 1, "state": "pending", "pairing_id": "pair-code"},
@@ -583,7 +583,7 @@ class ClientTests(unittest.TestCase):
                 "port": port,
                 "endpoint": "https://192.168.50.2:18443",
                 "certificate_fingerprint": PIN,
-                "server": "SteamOSRemote/1 Python/test",
+                "server": "SteamOSCompanion/1 Python/test",
             }
 
         with mock.patch.object(client_core, "_local_ipv4_networks", return_value=networks), mock.patch.object(client_core, "_probe_discovery_candidate", side_effect=probe):

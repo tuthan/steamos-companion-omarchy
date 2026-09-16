@@ -1,9 +1,9 @@
-# SteamOS Remote Omarchy design rules
+# SteamOS Companion Omarchy design rules
 
 Status: adopted for the 0.5.2 client.
 
 This file materializes the adoption recorded in the vault note
-`steamos-remote/08-omarchy-client-design`. The shared rules are at
+`steamos-companion/08-omarchy-client-design`. The shared rules are at
 `/home/hvo/Projects/plugin-docs/rules/omarchy-plugin-design.md`; OmaSafe's
 concrete reference is
 `/home/hvo/Projects/omasafe-plugin/docs/design/02-design-principles.md`.
@@ -83,7 +83,7 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   state. The approved response also carries the host wake MAC; the client
   persists it and chooses its own active sender interface, because host and
   client interface names are not expected to match.
-- Discovery is a locator only: a listener must identify as the SteamOS Remote
+- Discovery is a locator only: a listener must identify as the SteamOS Companion
   HTTPS service, but the selected endpoint still has to match the pairing
   payload's certificate pin before the secret is sent.
 - `202 Accepted` is rendered as a requested operation. The client does not

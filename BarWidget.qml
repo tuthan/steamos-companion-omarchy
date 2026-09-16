@@ -5,7 +5,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "io.github.tuthan.steamosremote"
+  moduleName: "io.github.tuthan.steamoscompanion"
 
   readonly property var panelObject: panelLoader.item
   readonly property bool opened: panelObject ? panelObject.opened === true : false
@@ -14,9 +14,9 @@ BarWidget {
   readonly property bool paired: panelObject ? panelObject.paired === true : false
   readonly property bool statusNeedsAttention: panelObject ? panelObject.statusNeedsAttention === true : false
   readonly property bool statusUncertain: panelObject ? panelObject.statusUncertain === true : false
-  readonly property string hostLabel: panelObject ? panelObject.hostLabel : "SteamOS Remote"
+  readonly property string hostLabel: panelObject ? panelObject.hostLabel : "SteamOS Companion"
   readonly property string lastObservation: panelObject ? panelObject.lastObservation : "not observed"
-  readonly property string barTooltip: panelObject ? panelObject.barTooltip : "SteamOS Remote · not paired"
+  readonly property string barTooltip: panelObject ? panelObject.barTooltip : "SteamOS Companion · not paired"
   readonly property bool popoutSwitchClosing: panelObject ? panelObject.popoutSwitchClosing === true : false
 
   function injectPanel() {
@@ -69,7 +69,7 @@ BarWidget {
     iconComponent: Component {
       Image {
         anchors.fill: parent
-        source: Qt.resolvedUrl("assets/steamos-remote-icon.svg")
+        source: Qt.resolvedUrl("assets/steamos-companion-icon.svg")
         sourceSize.width: width
         sourceSize.height: height
         fillMode: Image.PreserveAspectFit

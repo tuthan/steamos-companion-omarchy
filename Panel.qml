@@ -6,7 +6,7 @@ import qs.Ui
 
 Panel {
   id: root
-  moduleName: "io.github.tuthan.steamosremote"
+  moduleName: "io.github.tuthan.steamoscompanion"
   manageIpc: false
 
   property var anchorItem: null
@@ -144,8 +144,8 @@ Panel {
   readonly property bool statusNeedsAttention: statusState === "offline"
   readonly property bool statusUncertain: statusState === "stale" || statusState === "checking"
   readonly property string barTooltip: paired
-    ? "SteamOS Remote · " + statusWord + " · " + lastObservation
-    : "SteamOS Remote · not paired"
+    ? "SteamOS Companion · " + statusWord + " · " + lastObservation
+    : "SteamOS Companion · not paired"
 
   readonly property var outputList: outputsData && outputsData.outputs ? outputsData.outputs : []
   readonly property var currentOutput: {
@@ -592,10 +592,10 @@ Panel {
       } else if (root.helperSpawnFailed) {
         // The process never started, so there is no stderr to quote. This is
         // almost always a missing interpreter.
-        result = {ok: false, error: "python3 could not be started; install python3 to use SteamOS Remote", unknown: false}
+        result = {ok: false, error: "python3 could not be started; install python3 to use SteamOS Companion", unknown: false}
       } else {
         if (/No such file|not found|command not found/i.test(detail))
-          detail = "python3 was not found; install python3 to use SteamOS Remote"
+          detail = "python3 was not found; install python3 to use SteamOS Companion"
         result = {
           ok: false,
           error: detail ? "Client helper failed: " + detail.slice(0, 200) : "Client helper returned no usable response",
@@ -1634,7 +1634,7 @@ Panel {
     }
     root.discoveryData = null
     root.selectedDiscoveryHost = null
-    root.actionMessage = "Scanning the active IPv4 LAN for SteamOS Remote…"
+    root.actionMessage = "Scanning the active IPv4 LAN for SteamOS Companion…"
     remote("discover", {port: port}, function(result) {
       if (!result.ok) { root.actionMessage = friendlyError(result.error); return }
       root.discoveryData = result.data || {hosts: []}
@@ -1646,7 +1646,7 @@ Panel {
       } else if (count > 1) {
         root.actionMessage = "Found " + count + " listeners. Select the one that belongs to your Deck, then compare its fingerprint in Decky."
       } else {
-        root.actionMessage = root.discoveryData.reason || "No SteamOS Remote listener found"
+        root.actionMessage = root.discoveryData.reason || "No SteamOS Companion listener found"
       }
     })
   }
@@ -1930,7 +1930,7 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: "SteamOS Remote"
+            title: "SteamOS Companion"
             meta: root.hostLabel
             detail: root.statusWord
             foreground: root.bar ? root.bar.barForeground : Color.foreground
@@ -1938,7 +1938,7 @@ Panel {
               Image {
                 width: Style.font.display
                 height: width
-                source: Qt.resolvedUrl("assets/steamos-remote-icon.svg")
+                source: Qt.resolvedUrl("assets/steamos-companion-icon.svg")
                 sourceSize.width: width
                 sourceSize.height: height
                 fillMode: Image.PreserveAspectFit
@@ -2503,7 +2503,7 @@ Panel {
         HintText { width: parent.width; text: "Fallback for when discovery is not possible. Paste the payload shown by Decky." }
         TextField {
           width: parent.width
-          placeholderText: "steamos-remote:v1:…"
+          placeholderText: "steamos-companion:v1:…"
           text: root.pairingText
           onActiveFocusChanged: root.editingPairing = activeFocus
           onTextChanged: if (activeFocus) root.pairingText = text
