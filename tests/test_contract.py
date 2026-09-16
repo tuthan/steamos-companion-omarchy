@@ -27,7 +27,7 @@ class ContractTests(unittest.TestCase):
     def test_manifest_uses_native_bar_widget_entry_point(self):
         manifest = json.loads((ROOT / "manifest.json").read_text())
         self.assertEqual(manifest["schemaVersion"], 1)
-        self.assertEqual(manifest["version"], "0.5.3")
+        self.assertEqual(manifest["version"], "0.5.14")
         self.assertEqual(manifest["kinds"], ["bar-widget"])
         self.assertEqual(manifest["entryPoints"]["barWidget"], "BarWidget.qml")
         self.assertFalse(manifest["barWidget"]["allowMultiple"])
@@ -55,6 +55,7 @@ class ContractTests(unittest.TestCase):
             "Save and restart Gaming Mode",
             "Use automatic display order",
             "Refresh display order",
+            "Unavailable: route is not supported",
             "displayOrderDraftStale",
             "display-order:up:",
         ):

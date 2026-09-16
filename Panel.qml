@@ -320,7 +320,7 @@ Panel {
     var block = root.displayOrderBlock(data)
     if (!block) return "Loading display order…"
     if (root.displayOrderError !== "") return "Unavailable: " + root.displayOrderError
-    if (block.unsupported === true) return "Unsupported: " + root.displayOrderReasonText(data)
+    if (block.unsupported === true) return "Unavailable: route is not supported"
     if (block.ambiguous === true) return "Ambiguous output identity: " + root.displayOrderReasonText(data)
     if (block.stale === true) return "Stale display inventory: " + root.displayOrderReasonText(data)
     if (block.previous_reading === true) return "Previous display reading: " + root.displayOrderReasonText(data)

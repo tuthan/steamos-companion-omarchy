@@ -19,6 +19,8 @@ SteamOS Companion is an independent open-source project and is not affiliated wi
 
 ![SteamOS Companion Omarchy display view](assets/res.png)
 
+![SteamOS Companion Omarchy display order view](assets/screen-order.png)
+
 ![SteamOS Companion Omarchy settings view](assets/settings.png)
 
 ## Install

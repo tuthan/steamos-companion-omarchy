@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.tuthan.steamoscompanion",
   "name": "SteamOS Companion",
-  "version": "0.5.3",
+  "version": "0.5.14",
   "author": "Hung Vo",
   "license": "MIT",
   "description": "Discover and control a paired SteamOS host from the Omarchy bar: check status, wake, suspend, restart, or shut down the host, recover its display, manage Gaming Mode display order when supported, and show Sunshine recovery only when host monitoring is enabled.",
