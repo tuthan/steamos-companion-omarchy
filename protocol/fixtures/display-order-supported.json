@@ -1,0 +1,24 @@
+{
+  "protocol_version": 1,
+  "host_id": "fixture-host",
+  "display_order": {
+    "available": true,
+    "generation": 7,
+    "observed_at": "2026-09-16T03:20:00Z",
+    "output_keys": ["drm:card0:DP-1", "drm:card0:HDMI-A-2", "drm:card0:HDMI-A-1"],
+    "outputs": [
+      {"output_key": "drm:card0:DP-1", "display_name": "Desk monitor", "connector": "DP-1", "connected": true, "active": true},
+      {"output_key": "drm:card0:HDMI-A-2", "display_name": "Living room TV", "connector": "HDMI-A-2", "connected": true, "active": false},
+      {"output_key": "drm:card0:HDMI-A-1", "display_name": "Capture display", "connector": "HDMI-A-1", "connected": true, "active": null}
+    ],
+    "saved_output_keys": ["drm:card0:HDMI-A-2", "drm:card0:DP-1", "drm:card0:HDMI-A-1"],
+    "restart_required": true,
+    "restart_available": true,
+    "adapter": "gamescope-session-prefer-output",
+    "unsupported": false,
+    "stale": false,
+    "ambiguous": false,
+    "previous_reading": false,
+    "reason": null
+  }
+}

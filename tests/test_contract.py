@@ -33,6 +33,38 @@ class ContractTests(unittest.TestCase):
         panel = (ROOT / "Panel.qml").read_text()
         self.assertIn("statusData.sunshine.enabled === true", panel)
 
+    def test_display_order_is_additive_and_draft_safe(self):
+        schema = json.loads((ROOT / "protocol" / "schema.json").read_text())
+        self.assertIn("display_order", schema["properties"])
+        order = schema["$defs"]["display_order"]
+        self.assertIn("output_keys", order["required"])
+        self.assertIn("saved_output_keys", order["required"])
+        panel = (ROOT / "Panel.qml").read_text()
+        for text in (
+            "Display order",
+            "Move up",
+            "Move down",
+            "Save for next session",
+            "Save and restart Gaming Mode",
+            "Use automatic display order",
+            "Refresh display order",
+            "displayOrderDraftStale",
+            "display-order:up:",
+        ):
+            self.assertIn(text, panel)
+
+    def test_display_order_fixtures_cover_capability_and_fallback_states(self):
+        fixtures = {
+            path.stem: json.loads(path.read_text())["display_order"]
+            for path in (ROOT / "protocol" / "fixtures").glob("display-order-*.json")
+        }
+        self.assertTrue(fixtures["display-order-supported"]["available"])
+        self.assertTrue(fixtures["display-order-stale"]["stale"])
+        self.assertTrue(fixtures["display-order-unsupported"]["unsupported"])
+        fallback = fixtures["display-order-saved-fallback"]
+        self.assertTrue(any(output["connected"] is False for output in fallback["outputs"]))
+        self.assertIn(fallback["outputs"][2]["output_key"], fallback["saved_output_keys"])
+
 
 if __name__ == "__main__":
     unittest.main()

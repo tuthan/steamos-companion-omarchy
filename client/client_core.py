@@ -52,10 +52,13 @@ SAS_SCRYPT_P = 1
 SAS_MAXMEM = 64 * 1024 * 1024
 NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{20,32}$")
 INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
-PATH_RE = re.compile(r"^/v1/(?:pair/request|status|display/outputs|display/preview|display/confirm|display/restore|power|sunshine/restart|pair/revoke-self|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
+PATH_RE = re.compile(r"^/v1/(?:pair/request|status|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|power|sunshine/restart|pair/revoke-self|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+DISPLAY_OUTPUT_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:|/-]{0,127}$")
 PIN_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MAC_RE = re.compile(r"^[0-9a-f]{12}$")
+DISPLAY_ORDER_MAX_OUTPUTS = 16
+OPERATION_STATES = frozenset({"accepted", "dispatched", "observed_return", "succeeded", "failed", "unknown"})
 
 
 class ClientError(RuntimeError):
@@ -374,7 +377,15 @@ def _private_dir(path: Path):
             fd = child
             info = os.fstat(fd)
             final = index == len(path.parts) - 2
-            if info.st_uid not in {0, os.geteuid()} or (final and info.st_uid != os.geteuid()):
+            trusted_sticky_ancestor = (
+                not final
+                and bool(info.st_mode & stat.S_ISVTX)
+                and bool(info.st_mode & stat.S_IWOTH)
+            )
+            if (
+                (info.st_uid not in {0, os.geteuid()} and not trusted_sticky_ancestor)
+                or (final and info.st_uid != os.geteuid())
+            ):
                 raise ClientError("private client state directory is unsafe")
             if final:
                 os.fchmod(fd, 0o700)
@@ -506,6 +517,31 @@ class ClientStore:
         display_preference = value.get("show_nonstandard_refresh_rates", False)
         if not isinstance(display_preference, bool):
             raise ClientError("client display preferences are invalid")
+        pending_operation = value.get("pending_operation")
+        if pending_operation is not None:
+            if not isinstance(pending_operation, dict):
+                raise ClientError("client pending operation is invalid")
+            operation_id = pending_operation.get("id")
+            request_id = pending_operation.get("request_id")
+            operation_state = pending_operation.get("state")
+            operation_kind = pending_operation.get("kind")
+            pending_keys = pending_operation.get("output_keys")
+            pending_generation = pending_operation.get("generation")
+            if (
+                not isinstance(operation_id, str)
+                or not ID_RE.fullmatch(operation_id)
+                or not isinstance(request_id, str)
+                or not ID_RE.fullmatch(request_id)
+                or not isinstance(operation_state, str)
+                or operation_state not in OPERATION_STATES
+                or not isinstance(operation_kind, str)
+                or not 1 <= len(operation_kind) <= 64
+                or (pending_keys is None) != (pending_generation is None)
+            ):
+                raise ClientError("client pending operation is invalid")
+            if pending_keys is not None:
+                _display_order_keys(pending_keys)
+                _display_order_generation(pending_generation)
 
 
 class PendingStore:
@@ -593,7 +629,7 @@ def validate_response_limits(value: Any) -> None:
             if len(item) > 1024:
                 raise ClientError("host response text is too long")
         elif isinstance(item, list):
-            limit = 16 if field == "outputs" else 256
+            limit = DISPLAY_ORDER_MAX_OUTPUTS if field in {"outputs", "output_keys", "saved_output_keys"} else 256
             if len(item) > limit:
                 raise ClientError("host response list is too large")
             for child in item:
@@ -713,6 +749,31 @@ def _new_request_id(value: Any = None) -> str:
         return _id("req-")
     if not isinstance(value, str) or not ID_RE.fullmatch(value):
         raise ClientError("request_id is invalid")
+    return value
+
+
+def _display_order_keys(value: Any) -> list[str]:
+    """Validate the opaque output keys accepted by the order endpoint.
+
+    The client may forward keys it received from the host, but it never turns
+    them into connector arguments or shell text. The host remains responsible
+    for resolving each key against a fresh inventory.
+    """
+    if not isinstance(value, list) or not 1 <= len(value) <= DISPLAY_ORDER_MAX_OUTPUTS:
+        raise ClientError("display order must contain 1 to 16 output keys")
+    keys: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not DISPLAY_OUTPUT_KEY_RE.fullmatch(item):
+            raise ClientError("display order contains an invalid output key")
+        keys.append(item)
+    if len(set(keys)) != len(keys):
+        raise ClientError("display order contains duplicate output keys")
+    return keys
+
+
+def _display_order_generation(value: Any) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 2_147_483_647:
+        raise ClientError("display order generation is invalid")
     return value
 
 
@@ -1030,6 +1091,65 @@ class ClientCore:
         except (TypeError, ValueError) as exc:
             raise ClientError("timeout is invalid") from exc
 
+    def _remember_operation(
+        self,
+        state: dict[str, Any],
+        response: dict[str, Any],
+        *,
+        kind: str,
+        request_id: str,
+        output_keys: list[str] | None = None,
+        generation: int | None = None,
+    ) -> None:
+        """Keep only a bounded operation handle for reconnect reconciliation.
+
+        A restart response can be followed by a deliberate host disconnect. A
+        full response is not needed in private state; retaining the validated
+        operation ID lets the next panel instance query the original journal
+        entry without replaying the mutation.
+        """
+        operation = response.get("operation")
+        if not isinstance(operation, dict):
+            return
+        operation_id = operation.get("id")
+        if not isinstance(operation_id, str) or not ID_RE.fullmatch(operation_id):
+            return
+        operation_state = operation.get("state", "accepted")
+        if not isinstance(operation_state, str) or operation_state not in OPERATION_STATES:
+            operation_state = "accepted"
+        if operation_state in {"succeeded", "failed"}:
+            pending = state.get("pending_operation")
+            if not isinstance(pending, dict) or pending.get("id") == operation_id:
+                state.pop("pending_operation", None)
+        else:
+            pending_operation = {
+                "id": operation_id,
+                "request_id": request_id,
+                "state": operation_state,
+                "kind": kind[:64],
+            }
+            if output_keys is not None:
+                pending_operation["output_keys"] = list(output_keys)
+                pending_operation["generation"] = generation
+            state["pending_operation"] = pending_operation
+        self.store.save(state)
+
+    def _reconcile_operation(self, state: dict[str, Any], response: dict[str, Any]) -> None:
+        """Clear the matching private handle only after a terminal readback."""
+        pending = state.get("pending_operation")
+        operation = response.get("operation")
+        if not isinstance(pending, dict) or not isinstance(operation, dict):
+            return
+        operation_state = operation.get("state")
+        if (
+            operation.get("id") != pending.get("id")
+            or not isinstance(operation_state, str)
+            or operation_state not in {"succeeded", "failed"}
+        ):
+            return
+        state.pop("pending_operation", None)
+        self.store.save(state)
+
     def request(self, action: str, arguments: dict[str, Any]) -> dict[str, Any]:
         state = self.store.load()
         timeout = self._timeout(arguments.get("timeout"))
@@ -1043,11 +1163,40 @@ class ClientCore:
             return response
         if action == "outputs":
             return transport().request("GET", "/v1/display/outputs")
+        if action == "display-order":
+            return transport().request("GET", "/v1/display/order")
         if action == "operation":
             operation_id = arguments.get("operation_id")
             if not isinstance(operation_id, str) or not ID_RE.fullmatch(operation_id):
                 raise ClientError("operation_id is invalid")
-            return transport().request("GET", "/v1/operations/" + operation_id)
+            response = transport().request("GET", "/v1/operations/" + operation_id)
+            self._reconcile_operation(state, response)
+            return response
+        if action in {"display-order-save", "display-order-restart"}:
+            keys = _display_order_keys(arguments.get("output_keys"))
+            generation = _display_order_generation(arguments.get("generation"))
+            request_id = _new_request_id(arguments.get("request_id"))
+            body = {
+                "request_id": request_id,
+                "output_keys": keys,
+                "generation": generation,
+                "restart": action == "display-order-restart",
+            }
+            response = transport().request("POST", "/v1/display/order", body)
+            self._remember_operation(
+                state,
+                response,
+                kind=action,
+                request_id=request_id,
+                output_keys=keys,
+                generation=generation,
+            )
+            return response
+        if action == "display-order-reset":
+            request_id = _new_request_id(arguments.get("request_id"))
+            response = transport().request("POST", "/v1/display/order/automatic", {"request_id": request_id})
+            self._remember_operation(state, response, kind=action, request_id=request_id)
+            return response
         routes = {
             "power": ("POST", "/v1/power"),
             "preview": ("POST", "/v1/display/preview"),
@@ -1065,7 +1214,9 @@ class ClientCore:
         if action != "power":
             body.pop("action", None)
         body["request_id"] = _new_request_id(body.get("request_id"))
-        return transport().request(method, path, body)
+        response = transport().request(method, path, body)
+        self._remember_operation(state, response, kind=action, request_id=body["request_id"])
+        return response
 
     def configure_endpoint(self, endpoint: Any) -> dict[str, Any]:
         state = self.store.load()
@@ -1095,6 +1246,7 @@ class ClientCore:
             "wake_interface": state.get("wake_interface", ""),
             "wake_host_interface": state.get("wake_host_interface", ""),
             "show_nonstandard_refresh_rates": state.get("show_nonstandard_refresh_rates", False),
+            "pending_operation": state.get("pending_operation"),
         }
 
     def _remember_wake_target(self, response: dict[str, Any]) -> None:

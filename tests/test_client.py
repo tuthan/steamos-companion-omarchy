@@ -207,6 +207,87 @@ class ClientTests(unittest.TestCase):
                     self.assertEqual(FakeTransport.requests[0][1], "/v1/power")
                     self.assertEqual(FakeTransport.requests[0][2]["action"], expected)
 
+    def test_display_order_uses_fixed_routes_and_validates_opaque_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            core = client_core.ClientCore(directory)
+            core.store.save({
+                "protocol_version": 1,
+                "endpoint": "https://host.example:18443",
+                "host_id": "host-test",
+                "certificate_fingerprint": PIN,
+                "client_id": "client-test",
+                "token": "token-value",
+                "scopes": ["status.read", "display.control"],
+            })
+            response = {
+                "protocol_version": 1,
+                "operation": {"id": "op-order", "state": "accepted"},
+            }
+            with mock.patch.object(client_core, "PinnedTransport", FakeTransport):
+                FakeTransport.responses = [{"protocol_version": 1, "display_order": {"available": True}}]
+                FakeTransport.requests = []
+                core.request("display-order", {})
+                self.assertEqual(FakeTransport.requests[0][0:2], ("GET", "/v1/display/order"))
+                self.assertIsNone(FakeTransport.requests[0][2])
+
+                for action, restart in (("display-order-save", False), ("display-order-restart", True)):
+                    FakeTransport.responses = [response.copy()]
+                    FakeTransport.requests = []
+                    result = core.request(action, {
+                        "output_keys": ["drm:card0:DP-1", "drm:card0:HDMI-A-2"],
+                        "generation": 7,
+                    })
+                    self.assertEqual(result["operation"]["id"], "op-order")
+                    self.assertEqual(FakeTransport.requests[0][1], "/v1/display/order")
+                    body = FakeTransport.requests[0][2]
+                    self.assertEqual(body["output_keys"], ["drm:card0:DP-1", "drm:card0:HDMI-A-2"])
+                    self.assertEqual(body["generation"], 7)
+                    self.assertEqual(body["restart"], restart)
+                    self.assertNotIn("connector", body)
+                    self.assertNotIn("timeout", body)
+
+                FakeTransport.responses = [response.copy()]
+                FakeTransport.requests = []
+                core.request("display-order-reset", {})
+                self.assertEqual(FakeTransport.requests[0][1], "/v1/display/order/automatic")
+                self.assertEqual(set(FakeTransport.requests[0][2]), {"request_id"})
+
+            with self.assertRaises(client_core.ClientError):
+                core.request("display-order-save", {"output_keys": ["a", "a"], "generation": 7})
+            with self.assertRaises(client_core.ClientError):
+                core.request("display-order-save", {"output_keys": ["bad;command"], "generation": 7})
+            with self.assertRaises(client_core.ClientError):
+                core.request("display-order-save", {"output_keys": ["a"], "generation": True})
+
+    def test_unresolved_display_order_operation_is_reconciled_after_inspect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            core = client_core.ClientCore(directory)
+            core.store.save({
+                "protocol_version": 1,
+                "endpoint": "https://host.example:18443",
+                "host_id": "host-test",
+                "certificate_fingerprint": PIN,
+                "client_id": "client-test",
+                "token": "token-value",
+                "scopes": ["status.read", "display.control"],
+            })
+            with mock.patch.object(client_core, "PinnedTransport", FakeTransport):
+                FakeTransport.responses = [{
+                    "protocol_version": 1,
+                    "operation": {"id": "op-restart", "state": "accepted"},
+                }]
+                core.request("display-order-restart", {"output_keys": ["output:one"], "generation": 3})
+                self.assertEqual(core.inspect()["pending_operation"]["id"], "op-restart")
+                self.assertEqual(core.inspect()["pending_operation"]["output_keys"], ["output:one"])
+                self.assertEqual(core.inspect()["pending_operation"]["generation"], 3)
+
+                FakeTransport.responses = [{
+                    "protocol_version": 1,
+                    "operation": {"id": "op-restart", "state": "succeeded"},
+                }]
+                core.request("operation", {"operation_id": "op-restart"})
+            self.assertIsNone(core.inspect()["pending_operation"])
+
     def test_display_refresh_preference_is_persisted_locally(self):
         with tempfile.TemporaryDirectory() as directory:
             core = client_core.ClientCore(directory)

@@ -65,3 +65,25 @@ Power uses only the fixed `suspend`, `restart`, and `shutdown` actions. Display
 generation identifies the output/mode inventory, not the current mode, so the
 normal mode switch and Steam's mode-ID re-enumeration do not invalidate a live
 preview before semantic readback confirmation.
+
+## Remote Gaming Mode display order
+
+New hosts may expose `GET /v1/display/order` as an additive resource under
+the existing v1 protocol. It is authenticated with `status.read` and returns
+`display_order` with a fresh `generation`, `observed_at`, ordered opaque
+`output_keys` for the current inventory, bounded output records, the saved
+priority in `saved_output_keys`, independent restart flags, an adapter
+identifier, and explicit unsupported/stale/ambiguous or previous-reading
+reasons. The output record exposes only a friendly display name, connector
+label, connected state, and active readback; it is not a Gamescope command
+interface.
+
+The client submits only host-issued opaque keys and the observed generation to
+`POST /v1/display/order`, with `restart:false` for **Save for next session** or
+`restart:true` for **Save and restart Gaming Mode**. The latter is shown only
+after confirmation and targets the fixed user `gamescope-session.target` route
+on the host. `POST /v1/display/order/automatic` is the explicit reset that
+removes only plugin-owned order configuration. The host re-enumerates and
+resolves every key, rejects duplicate or stale input, writes atomically, and
+returns an operation ID. The client never replays an unresolved restart; it
+reconciles that ID after reconnect.

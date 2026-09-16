@@ -67,6 +67,18 @@ Panel {
   property bool showNonstandardRefreshRates: false
   property bool previewMutationBusy: false
   property int countdownSeconds: 0
+  property var displayOrderData: null
+  property var displayOrderLatestData: null
+  property var displayOrderDraft: []
+  property var displayOrderBase: []
+  property string displayOrderSignature: ""
+  property string displayOrderTopologySignature: ""
+  property bool displayOrderDraftDirty: false
+  property bool displayOrderDraftStale: false
+  property string displayOrderMutation: ""
+  property var displayOrderPendingKeys: []
+  property bool displayOrderRefreshRequested: false
+  property string displayOrderError: ""
 
   // ---- helper lifecycle -------------------------------------------------
   property int pollGeneration: 0
@@ -149,6 +161,234 @@ Panel {
       if (modes[index].id === root.selectedModeId) return modes[index]
     }
     return modes.length > 0 ? modes[0] : null
+  }
+  readonly property var displayOrderRows: displayOrderRowsFor(root.displayOrderDraft, root.displayOrderData)
+
+  function displayOrderBlock(data) {
+    if (!data || typeof data !== "object") return null
+    var nested = data.display_order || data.displayOrder || data.order
+    if (nested && typeof nested === "object") return nested
+    if (data.output_keys !== undefined || data.saved_output_keys !== undefined || data.restart_required !== undefined)
+      return data
+    return null
+  }
+
+  function displayOrderOutputKey(output) {
+    if (!output || typeof output !== "object") return ""
+    var value = output.output_key || output.key
+    return typeof value === "string" ? value : ""
+  }
+
+  function displayOrderOutputsFor(data) {
+    var block = root.displayOrderBlock(data)
+    return block && Array.isArray(block.outputs) ? block.outputs : []
+  }
+
+  function displayOrderKeysFor(data) {
+    var block = root.displayOrderBlock(data)
+    if (!block) return []
+    var keys = block.output_keys
+    if (!Array.isArray(keys)) keys = block.ordered_output_keys
+    if (!Array.isArray(keys)) {
+      keys = []
+      var outputs = root.displayOrderOutputsFor(data)
+      for (var index = 0; index < outputs.length; index++) {
+        var outputKey = root.displayOrderOutputKey(outputs[index])
+        if (outputKey !== "") keys.push(outputKey)
+      }
+    }
+    return keys.filter(function(value) { return typeof value === "string" && value !== "" })
+  }
+
+  function displayOrderSavedKeysFor(data) {
+    var block = root.displayOrderBlock(data)
+    if (!block || !Array.isArray(block.saved_output_keys)) return []
+    return block.saved_output_keys.filter(function(value) { return typeof value === "string" && value !== "" })
+  }
+
+  function displayOrderOutputFor(key, data) {
+    var outputs = root.displayOrderOutputsFor(data)
+    for (var index = 0; index < outputs.length; index++) {
+      if (root.displayOrderOutputKey(outputs[index]) === key) return outputs[index]
+    }
+    return null
+  }
+
+  function displayOrderConnectedKeysFor(data) {
+    var connected = []
+    var keys = root.displayOrderKeysFor(data)
+    for (var index = 0; index < keys.length; index++) {
+      var output = root.displayOrderOutputFor(keys[index], data)
+      // The host must state connected=true. Missing state is not a reason to
+      // guess that a stale or disconnected target can be saved.
+      if (output && output.connected === true) connected.push(keys[index])
+    }
+    return connected
+  }
+
+  function displayOrderOrderFor(data) {
+    var connectedKeys = root.displayOrderConnectedKeysFor(data)
+    var savedKeys = root.displayOrderSavedKeysFor(data)
+    var ordered = []
+    for (var index = 0; index < savedKeys.length; index++) {
+      if (connectedKeys.indexOf(savedKeys[index]) >= 0 && ordered.indexOf(savedKeys[index]) < 0)
+        ordered.push(savedKeys[index])
+    }
+    for (var connectedIndex = 0; connectedIndex < connectedKeys.length; connectedIndex++) {
+      if (ordered.indexOf(connectedKeys[connectedIndex]) < 0)
+        ordered.push(connectedKeys[connectedIndex])
+    }
+    return ordered
+  }
+
+  function displayOrderMissingSavedKeysFor(data) {
+    var savedKeys = root.displayOrderSavedKeysFor(data)
+    var connectedKeys = root.displayOrderConnectedKeysFor(data)
+    var missing = 0
+    for (var index = 0; index < savedKeys.length; index++) {
+      if (connectedKeys.indexOf(savedKeys[index]) < 0) missing++
+    }
+    return missing
+  }
+
+  function displayOrderRowsFor(keys, data) {
+    var rows = []
+    if (!Array.isArray(keys)) return rows
+    for (var index = 0; index < keys.length; index++) {
+      var output = root.displayOrderOutputFor(keys[index], data)
+      if (output && output.connected === true) rows.push(output)
+    }
+    return rows
+  }
+
+  function displayOrderGenerationFor(data) {
+    var block = root.displayOrderBlock(data)
+    var generation = block ? block.generation : null
+    return typeof generation === "number" && isFinite(generation) && Math.floor(generation) === generation ? generation : -1
+  }
+
+  function displayOrderTopologySignatureFor(data) {
+    var block = root.displayOrderBlock(data)
+    var records = root.displayOrderOutputsFor(data).map(function(output) {
+      return [root.displayOrderOutputKey(output), output && output.connected === true, output ? output.connector || null : null]
+    }).filter(function(record) { return record[0] !== "" })
+    records.sort(function(left, right) { return left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0 })
+    return JSON.stringify({generation: block ? block.generation : null, outputs: records})
+  }
+
+  function displayOrderSignatureFor(data) {
+    var block = root.displayOrderBlock(data)
+    if (!block) return ""
+    return JSON.stringify({
+      available: block.available,
+      generation: block.generation,
+      output_keys: root.displayOrderKeysFor(data),
+      outputs: block.outputs,
+      saved_output_keys: root.displayOrderSavedKeysFor(data),
+      restart_required: block.restart_required,
+      restart_available: block.restart_available,
+      adapter: block.adapter,
+      unsupported: block.unsupported,
+      stale: block.stale,
+      ambiguous: block.ambiguous,
+      previous_reading: block.previous_reading,
+      reason: block.reason
+    })
+  }
+
+  function displayOrderArraysEqual(left, right) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] !== right[index]) return false
+    }
+    return true
+  }
+
+  function displayOrderAcknowledgePending(orderedKeys, data) {
+    var block = root.displayOrderBlock(data)
+    if (!block || block.available !== true || block.stale === true || block.ambiguous === true || block.unsupported === true)
+      return
+    if (root.displayOrderMutation !== "" || root.displayOrderPendingKeys.length === 0
+        || (!root.displayOrderArraysEqual(orderedKeys, root.displayOrderPendingKeys)
+            && !root.displayOrderArraysEqual(root.displayOrderSavedKeysFor(data), root.displayOrderPendingKeys))) return
+    root.displayOrderDraftDirty = false
+    root.displayOrderBase = orderedKeys.slice()
+    root.displayOrderPendingKeys = []
+  }
+
+  function displayOrderStatusText(data) {
+    var block = root.displayOrderBlock(data)
+    if (!block) return "Loading display order…"
+    if (root.displayOrderError !== "") return "Unavailable: " + root.displayOrderError
+    if (block.unsupported === true) return "Unsupported: " + root.displayOrderReasonText(data)
+    if (block.ambiguous === true) return "Ambiguous output identity: " + root.displayOrderReasonText(data)
+    if (block.stale === true) return "Stale display inventory: " + root.displayOrderReasonText(data)
+    if (block.previous_reading === true) return "Previous display reading: " + root.displayOrderReasonText(data)
+    if (block.available !== true) return root.displayOrderReasonText(data)
+    if (root.displayOrderDraftStale) return "Display topology changed; refresh before saving."
+    if (root.displayOrderDraftDirty) return "Draft order has unsaved changes."
+    if (root.displayOrderPendingKeys.length > 0) return "Waiting for host readback of the saved order."
+    var count = root.displayOrderRows.length
+    var generation = root.displayOrderGenerationFor(data)
+    var missingSavedKeys = root.displayOrderMissingSavedKeysFor(data)
+    if (missingSavedKeys > 0)
+      return missingSavedKeys === 1
+        ? "1 saved output is unavailable; showing connected outputs"
+        : missingSavedKeys + " saved outputs are unavailable; showing connected outputs"
+    return count + " connected " + (count === 1 ? "output" : "outputs") + (generation >= 0 ? " · generation " + generation : "")
+  }
+
+  function displayOrderReasonText(data) {
+    var block = root.displayOrderBlock(data)
+    if (!block) return "Waiting for a fresh host reading."
+    var reason = String(block.reason || "").replace(/\s+/g, " ").trim()
+    if (reason !== "") return reason.slice(0, 256)
+    if (block.unsupported === true) return "The host does not expose remote display ordering."
+    if (block.ambiguous === true) return "Refresh and select a host-owned output identity."
+    if (block.stale === true || block.previous_reading === true) return "Refresh before changing the order."
+    if (block.available !== true) return "Display order is unavailable on this host."
+    return ""
+  }
+
+  function displayOrderOutputLabel(output) {
+    if (!output) return "Output unavailable"
+    var name = output.display_name || output.name || output.description || output.connector || root.displayOrderOutputKey(output)
+    return String(name || "Output unavailable").slice(0, 160)
+  }
+
+  function displayOrderConnectorLabel(output) {
+    if (!output || !output.connector) return "connector unavailable"
+    return String(output.connector).slice(0, 128)
+  }
+
+  function displayOrderActiveLabel(output) {
+    if (!output || output.active === null || output.active === undefined) return "Active unknown"
+    return output.active === true ? "Active" : "Not active"
+  }
+
+  function displayOrderCanEdit() {
+    var block = root.displayOrderBlock(root.displayOrderData)
+    return root.paired && !!block && block.available === true && block.unsupported !== true
+      && block.stale !== true && block.ambiguous !== true && !root.displayOrderDraftStale
+      && root.displayOrderError === "" && !root.displayOrderRefreshRequested
+      && root.displayOrderDraft.length > 0 && root.displayOrderMutation === ""
+      && root.displayOrderPendingKeys.length === 0
+  }
+
+  function displayOrderCanSave() {
+    return root.displayOrderCanEdit() && !root.actionBusy
+  }
+
+  function displayOrderMoveAvailable(outputKey, delta) {
+    if (!root.displayOrderCanEdit()) return false
+    var index = root.displayOrderDraft.indexOf(outputKey)
+    var nextIndex = index + delta
+    return index >= 0 && nextIndex >= 0 && nextIndex < root.displayOrderDraft.length
+  }
+
+  function displayOrderRestartAvailable() {
+    var block = root.displayOrderBlock(root.displayOrderData)
+    return root.displayOrderCanSave() && !!block && block.restart_available === true
   }
 
   // One cursor row definition reused by every actionable row, so the keyboard
@@ -446,6 +686,20 @@ Panel {
       root.wakeInterface = root.localData.wake_interface || ""
       root.wakeHostInterface = root.localData.wake_host_interface || ""
       root.showNonstandardRefreshRates = root.localData.show_nonstandard_refresh_rates === true
+      var pendingOperation = root.localData.pending_operation
+      if (pendingOperation && pendingOperation.id
+          && (!root.operationData || root.operationData.id !== pendingOperation.id)) {
+        root.operationData = pendingOperation
+        root.operationPolls = 0
+      }
+      if (pendingOperation && pendingOperation.kind === "display-order-restart" && root.displayOrderMutation === "")
+        root.displayOrderMutation = "restart"
+      else if (pendingOperation && pendingOperation.kind === "display-order-save" && root.displayOrderMutation === "")
+        root.displayOrderMutation = "save"
+      else if (pendingOperation && pendingOperation.kind === "display-order-reset" && root.displayOrderMutation === "")
+        root.displayOrderMutation = "reset"
+      if (pendingOperation && Array.isArray(pendingOperation.output_keys))
+        root.displayOrderPendingKeys = pendingOperation.output_keys.slice()
       if (root.opened && root.paired) root.refresh()
     }, false)
   }
@@ -487,6 +741,19 @@ Panel {
         root.applyOutputs(result.data)
       }, true)
     }
+    if (root.view === "display") {
+      enqueueHelper("display-order", {timeout: 2.5}, function(result) {
+        if (!result.ok) {
+          // A 404 on an older host is an additive capability miss. Keep the
+          // existing resolution controls usable and label only this section.
+          root.applyDisplayOrderFailure(result.error)
+          root.displayOrderRefreshRequested = false
+          return
+        }
+        root.applyDisplayOrder(result.data, root.displayOrderRefreshRequested)
+        root.displayOrderRefreshRequested = false
+      }, true)
+    }
     if (root.operationData && root.operationData.id && !root.operationIsSettled()) {
       var operationId = root.operationData.id
       enqueueHelper("operation", {operation_id: operationId, timeout: 2.5}, function(result) {
@@ -497,12 +764,65 @@ Panel {
         root.operationPolls++
         root.operationData = result.data.operation
         var state = result.data.operation.state
-        if (["failed", "unknown"].indexOf(state) >= 0)
+        if (root.settleDisplayOrderOperation(operationId, result.data.operation)) return
+        if (["failed", "unknown"].indexOf(state) >= 0) {
           root.actionMessage = result.data.operation.reason || "Operation result is unavailable"
-        else if (["succeeded", "observed_return"].indexOf(state) >= 0 && root.actionMessage === "Requested; waiting for host observation")
+        } else if (["succeeded", "observed_return"].indexOf(state) >= 0 && root.actionMessage === "Requested; waiting for host observation") {
           root.actionMessage = result.data.operation.outcome || "Host observed the request"
+        }
       }, true)
     }
+  }
+
+  function settleDisplayOrderOperation(operationId, operation) {
+    if (root.displayOrderMutation === "" || !operation) return false
+    var state = operation.state
+    if (["succeeded", "failed", "unknown"].indexOf(state) < 0) return false
+    var mutation = root.displayOrderMutation
+    var orderOutcome = String(operation.outcome || "")
+    var orderWasSaved = operation.order_saved === true
+      || operation.saved === true
+      || (/(?:^|[\s_-])(?:configured|saved)(?:$|[\s_-])/i.test(orderOutcome)
+          && !/(?:^|[\s_-])not[\s_-]+(?:configured|saved)(?:$|[\s_-])/i.test(orderOutcome))
+    if (state === "unknown") {
+      root.actionMessage = "Display order result is unknown; reconnecting will reconcile operation " + operationId
+      if (root.operationPolls > 30) root.displayOrderMutation = ""
+    } else if (state === "failed") {
+      var orderSavedDespiteRestartFailure = false
+      if (mutation === "restart" && orderWasSaved) {
+        root.actionMessage = "Display order remains saved, but Gaming Mode restart failed: "
+          + (operation.reason || "restart result unavailable")
+        root.displayOrderDraftDirty = false
+        root.displayOrderBase = root.displayOrderPendingKeys.slice()
+        orderSavedDespiteRestartFailure = root.displayOrderPendingKeys.length > 0
+      } else {
+        root.actionMessage = operation.reason || (mutation === "reset"
+          ? "Automatic display-order reset failed"
+          : "Display order save failed")
+      }
+      if (!orderSavedDespiteRestartFailure) root.displayOrderPendingKeys = []
+      root.displayOrderMutation = ""
+    } else {
+      root.actionMessage = mutation === "restart"
+        ? "Display order saved; Gaming Mode restart requested. Reconnect and verify the active screen."
+        : mutation === "reset"
+          ? "Automatic display order restored."
+          : "Display order saved for the next Gaming Mode session."
+      if (mutation === "save" || mutation === "restart") {
+        root.displayOrderDraftDirty = false
+        if (root.displayOrderPendingKeys.length > 0)
+          root.displayOrderBase = root.displayOrderPendingKeys.slice()
+      }
+      if (mutation === "reset") {
+        root.displayOrderDraftDirty = false
+        root.displayOrderDraftStale = false
+        root.displayOrderBase = []
+        root.displayOrderPendingKeys = []
+        root.displayOrderRefreshRequested = true
+      }
+      root.displayOrderMutation = ""
+    }
+    return true
   }
 
   function operationIsSettled() {
@@ -524,6 +844,91 @@ Panel {
     root.outputsSignature = signature
     root.outputsData = data
     root.clampDisplaySelection()
+  }
+
+  function applyDisplayOrderFailure(error) {
+    var previous = root.displayOrderData
+    if (previous && root.displayOrderBlock(previous)) {
+      root.displayOrderLatestData = null
+      root.displayOrderError = root.friendlyError(error)
+      root.actionMessage = "Display order could not be refreshed: " + root.friendlyError(error)
+      return
+    }
+    root.displayOrderData = {
+      protocol_version: 1,
+      display_order: {
+        available: false,
+        generation: null,
+        observed_at: null,
+        output_keys: [],
+        outputs: [],
+        saved_output_keys: [],
+        restart_required: false,
+        restart_available: false,
+        adapter: null,
+        unsupported: true,
+        stale: false,
+        ambiguous: false,
+        previous_reading: false,
+        reason: root.friendlyError(error)
+      }
+    }
+    root.displayOrderError = root.friendlyError(error)
+    root.displayOrderDraft = []
+    root.displayOrderBase = []
+    root.displayOrderDraftDirty = false
+    root.displayOrderDraftStale = false
+  }
+
+  function applyDisplayOrder(data, force) {
+    var block = root.displayOrderBlock(data)
+    if (!block) {
+      root.applyDisplayOrderFailure("host returned no display-order resource")
+      return
+    }
+    var orderedKeys = root.displayOrderOrderFor(data)
+    var topology = root.displayOrderTopologySignatureFor(data)
+    var hasReading = !!root.displayOrderData && !!root.displayOrderBlock(root.displayOrderData)
+    var topologyChanged = hasReading && topology !== root.displayOrderTopologySignature
+    if (force === true || !hasReading) {
+      root.displayOrderData = data
+      root.displayOrderLatestData = null
+      root.displayOrderError = ""
+      root.displayOrderSignature = root.displayOrderSignatureFor(data)
+      root.displayOrderTopologySignature = topology
+      root.displayOrderDraft = orderedKeys
+      root.displayOrderBase = orderedKeys.slice()
+      root.displayOrderDraftDirty = false
+      root.displayOrderDraftStale = block.stale === true || block.ambiguous === true || block.unsupported === true
+      root.displayOrderAcknowledgePending(orderedKeys, data)
+      return
+    }
+    if (topologyChanged) {
+      // Never merge a new host topology into an order the owner may be editing.
+      // Keep the old rows and cursor stable until Refresh explicitly accepts it.
+      root.displayOrderLatestData = data
+      root.displayOrderError = ""
+      root.displayOrderDraftStale = true
+      return
+    }
+    var signature = root.displayOrderSignatureFor(data)
+    root.displayOrderAcknowledgePending(orderedKeys, data)
+    if (signature === root.displayOrderSignature) {
+      root.displayOrderError = ""
+      return
+    }
+    root.displayOrderData = data
+    root.displayOrderLatestData = null
+    root.displayOrderError = ""
+    root.displayOrderSignature = signature
+    root.displayOrderTopologySignature = topology
+    if (!root.displayOrderDraftDirty && root.displayOrderMutation === ""
+        && root.displayOrderPendingKeys.length === 0) {
+      root.displayOrderDraft = orderedKeys
+      root.displayOrderBase = orderedKeys.slice()
+    }
+    if (block.stale === true || block.ambiguous === true || block.unsupported === true)
+      root.displayOrderDraftStale = true
   }
 
   function refreshAfterAction(message) {
@@ -564,8 +969,24 @@ Panel {
     return keys
   }
 
-  function displayRowKeys() {
+  function displayOrderRowKeys() {
     var keys = []
+    var rows = root.displayOrderRows
+    for (var index = 0; index < rows.length; index++) {
+      var outputKey = root.displayOrderOutputKey(rows[index])
+      if (outputKey === "") continue
+      keys.push("display-order:up:" + outputKey)
+      keys.push("display-order:down:" + outputKey)
+    }
+    keys.push("display-order:save")
+    keys.push("display-order:restart")
+    keys.push("display-order:automatic")
+    keys.push("display-order:refresh")
+    return keys
+  }
+
+  function displayRowKeys() {
+    var keys = root.displayOrderRowKeys()
     if (root.outputList.length > 1) keys.push("output")
     var modes = root.visibleModeList
     for (var index = 0; index < modes.length; index++) keys.push("mode:" + modes[index].id)
@@ -610,6 +1031,20 @@ Panel {
       return false
     }
     if (view === "display") {
+      if (key.indexOf("display-order:up:") === 0)
+        return root.displayOrderMoveAvailable(key.slice("display-order:up:".length), -1)
+      if (key.indexOf("display-order:down:") === 0)
+        return root.displayOrderMoveAvailable(key.slice("display-order:down:".length), 1)
+      if (key === "display-order:save") return root.displayOrderCanSave()
+      if (key === "display-order:restart") return root.displayOrderRestartAvailable()
+      if (key === "display-order:automatic") {
+        var orderBlock = root.displayOrderBlock(root.displayOrderData)
+        return root.paired && !root.actionBusy && root.displayOrderMutation === ""
+          && !root.displayOrderRefreshRequested && root.displayOrderPendingKeys.length === 0 && !!orderBlock
+          && (orderBlock.available === true || root.displayOrderSavedKeysFor(root.displayOrderData).length > 0)
+      }
+      if (key === "display-order:refresh") return root.paired && !root.actionBusy
+        && root.displayOrderMutation === "" && !root.displayOrderRefreshRequested
       if (key === "output") return root.outputList.length > 1 && !root.previewData
       if (key === "restore") return root.paired && !root.previewData && !root.actionBusy
       return key.indexOf("mode:") === 0
@@ -689,7 +1124,13 @@ Panel {
       else if (key === "shutdown") openConfirmation("shutdown")
       else if (key === "sunshine") restartSunshine()
     } else if (view === "display") {
-      if (key === "output") cycleOutput()
+      if (key.indexOf("display-order:up:") === 0) root.moveDisplayOrder(key.slice("display-order:up:".length), -1)
+      else if (key.indexOf("display-order:down:") === 0) root.moveDisplayOrder(key.slice("display-order:down:".length), 1)
+      else if (key === "display-order:save") root.saveDisplayOrder(false)
+      else if (key === "display-order:restart") root.openConfirmation("display-order-restart")
+      else if (key === "display-order:automatic") root.resetDisplayOrder()
+      else if (key === "display-order:refresh") root.refreshDisplayOrder()
+      else if (key === "output") cycleOutput()
       else if (key === "restore") restoreWorking()
       else if (key.indexOf("mode:") === 0) root.selectedModeId = key.slice(5)
     } else {
@@ -722,6 +1163,7 @@ Panel {
     if (confirmationKind === "suspend") return "Suspend the exact paired SteamOS host? The session will be interrupted and wake uses the automatically detected LAN path."
     if (confirmationKind === "restart") return "Restart the exact paired SteamOS host? Any running session will be interrupted."
     if (confirmationKind === "shutdown") return "Shut down the exact paired SteamOS host? Wake later requires a powered NIC and the automatically detected LAN path."
+    if (confirmationKind === "display-order-restart") return "Save this display order and restart Gaming Mode on the paired SteamOS host? Running games and the Steam UI will close, and the current stream may disconnect."
     if (confirmationKind === "revoke") return "Revoke this client's host credential? The Omarchy copy will be forgotten after the host accepts the request."
     return "Forget this local pairing? This does not revoke the host credential while offline."
   }
@@ -738,6 +1180,9 @@ Panel {
           refreshAfterAction(label + " requested; physical transition is not confirmed by the method response")
         }
       })
+    } else if (kind === "display-order-restart") {
+      if (root.displayOrderRestartAvailable()) root.saveDisplayOrder(true)
+      else root.actionMessage = "Display order restart is no longer available; refresh before trying again"
     } else if (kind === "revoke") {
       remote("revoke", {}, function(result) {
         if (!result.ok) { root.actionMessage = friendlyError(result.error); return }
@@ -760,6 +1205,18 @@ Panel {
     root.outputsData = null
     root.outputsSignature = ""
     root.previewData = null
+    root.displayOrderData = null
+    root.displayOrderLatestData = null
+    root.displayOrderDraft = []
+    root.displayOrderBase = []
+    root.displayOrderSignature = ""
+    root.displayOrderTopologySignature = ""
+    root.displayOrderDraftDirty = false
+    root.displayOrderDraftStale = false
+    root.displayOrderMutation = ""
+    root.displayOrderPendingKeys = []
+    root.displayOrderRefreshRequested = false
+    root.displayOrderError = ""
     root.operationData = null
     root.pendingPairing = null
     root.connectionState = "idle"
@@ -864,6 +1321,112 @@ Panel {
   }
 
   // ---- display -----------------------------------------------------------
+
+  function moveDisplayOrder(outputKey, delta) {
+    if (!root.displayOrderCanEdit()) return
+    var current = root.displayOrderDraft.slice()
+    var index = current.indexOf(outputKey)
+    var nextIndex = index + delta
+    if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return
+    var moved = current[index]
+    current.splice(index, 1)
+    current.splice(nextIndex, 0, moved)
+    root.displayOrderDraft = current
+    root.displayOrderDraftDirty = !root.displayOrderArraysEqual(current, root.displayOrderBase)
+    root.actionMessage = "Display order draft changed; save it for the next Gaming Mode session"
+  }
+
+  function saveDisplayOrder(restart) {
+    if (restart === true) {
+      if (!root.displayOrderRestartAvailable()) return
+    } else if (!root.displayOrderCanSave()) {
+      return
+    }
+    var generation = root.displayOrderGenerationFor(root.displayOrderData)
+    var keys = root.displayOrderDraft.slice()
+    if (generation < 0 || keys.length === 0) {
+      root.actionMessage = "Refresh the display order before saving it"
+      return
+    }
+    root.displayOrderPendingKeys = keys
+    root.displayOrderMutation = restart === true ? "restart" : "save"
+    root.actionMessage = restart === true
+      ? "Saving display order; the fixed Gaming Mode restart will be requested next…"
+      : "Saving display order for the next Gaming Mode session…"
+    remote(restart === true ? "display-order-restart" : "display-order-save", {
+      output_keys: keys,
+      generation: generation,
+    }, function(result) {
+      if (!result.ok) {
+        root.displayOrderMutation = ""
+        root.displayOrderPendingKeys = []
+        if (/stale|topolog|generation|ambiguous|connected/i.test(String(result.error || "")))
+          root.displayOrderDraftStale = true
+        root.actionMessage = result.unknown === true
+          ? "Display order result is unknown; do not resend automatically. Refresh and reconcile the host operation."
+          : root.friendlyError(result.error)
+        return
+      }
+      var data = result.data || {}
+      var operation = data.operation
+      if (!operation || !operation.id) {
+        root.displayOrderMutation = ""
+        root.displayOrderPendingKeys = []
+        root.actionMessage = "Host response omitted an operation ID; refresh before making another display-order change"
+        return
+      }
+      root.operationData = operation
+      root.operationPolls = 0
+      root.refreshAfterAction(restart === true
+        ? "Display order save accepted; waiting to reconcile the Gaming Mode restart"
+        : "Display order save accepted; waiting for host confirmation")
+      root.settleDisplayOrderOperation(operation.id, operation)
+    })
+  }
+
+  function resetDisplayOrder() {
+    var block = root.displayOrderBlock(root.displayOrderData)
+    if (!root.paired || !block || root.displayOrderMutation !== "" || root.displayOrderRefreshRequested
+        || root.displayOrderPendingKeys.length > 0 || root.actionBusy
+        || (block.available !== true && root.displayOrderSavedKeysFor(root.displayOrderData).length === 0)) return
+    root.displayOrderMutation = "reset"
+    root.displayOrderPendingKeys = []
+    root.actionMessage = "Restoring automatic display order…"
+    remote("display-order-reset", {}, function(result) {
+      if (!result.ok) {
+        root.displayOrderMutation = ""
+        root.actionMessage = result.unknown === true
+          ? "Automatic display-order reset is unknown; refresh and reconcile the host operation."
+          : root.friendlyError(result.error)
+        return
+      }
+      var operation = result.data && result.data.operation
+      if (!operation || !operation.id) {
+        root.displayOrderMutation = ""
+        root.actionMessage = "Host response omitted an operation ID; refresh before making another change"
+        return
+      }
+      root.operationData = operation
+      root.operationPolls = 0
+      root.refreshAfterAction("Automatic display order reset accepted; waiting for host confirmation")
+      root.settleDisplayOrderOperation(operation.id, operation)
+    })
+  }
+
+  function refreshDisplayOrder() {
+    if (!root.paired || root.displayOrderMutation !== "") return
+    root.displayOrderRefreshRequested = true
+    root.actionMessage = "Refreshing display order…"
+    enqueueHelper("display-order", {timeout: 2.5}, function(result) {
+      if (!result.ok) {
+        root.applyDisplayOrderFailure(result.error)
+        root.displayOrderRefreshRequested = false
+        return
+      }
+      root.applyDisplayOrder(result.data, true)
+      root.displayOrderRefreshRequested = false
+    }, true)
+  }
 
   function modeLabel(mode) {
     if (!mode) return "Unavailable"
@@ -1231,15 +1794,17 @@ Panel {
   // ---- lifecycle ---------------------------------------------------------
 
   function onOpened() {
+    var keepOperation = !!root.operationData && !root.operationIsSettled()
+    var keepDisplayOrderMutation = root.displayOrderMutation !== ""
     pollGeneration++
     view = "host"
     cursorIndex = 0
     cursorActive = false
-    actionMessage = ""
+    if (!keepOperation && !keepDisplayOrderMutation) actionMessage = ""
     cursorKey = ""
     previewMutationBusy = false
     pairingBusy = false
-    operationData = null
+    if (!keepOperation) operationData = null
     operationPolls = 0
     pollIntervalMs = 2000
     localInspect()
@@ -1537,6 +2102,113 @@ Panel {
       spacing: Style.space(8)
 
       PanelSectionHeader { text: "Display"; width: parent.width }
+      PanelSectionHeader { text: "Display order"; width: parent.width }
+      HintText {
+        width: parent.width
+        text: "Gaming Mode uses the first available screen in this order when the next session starts. Active is host readback only."
+      }
+      BodyText {
+        width: parent.width
+        text: root.displayOrderStatusText(root.displayOrderData)
+      }
+      HintText {
+        width: parent.width
+        visible: {
+          var block = root.displayOrderBlock(root.displayOrderData)
+          return !!block && block.restart_required === true && block.restart_available !== true
+        }
+        text: "The host requires a Gaming Mode restart, but its fixed restart route is unavailable."
+      }
+      HintText {
+        width: parent.width
+        visible: !!root.displayOrderLatestData
+        text: "A topology change was observed. Refresh to replace this list; the current draft is retained."
+      }
+      BodyText {
+        width: parent.width
+        visible: !!root.displayOrderBlock(root.displayOrderData) && root.displayOrderRows.length === 0
+        text: "No connected outputs are available for an order."
+      }
+      Column {
+        width: parent.width
+        spacing: Style.space(4)
+        visible: root.displayOrderRows.length > 0
+        Repeater {
+          model: root.displayOrderRows
+          delegate: Row {
+            required property var modelData
+            required property int index
+            readonly property string outputKey: root.displayOrderOutputKey(modelData)
+            width: parent.width
+            spacing: Style.space(4)
+
+            BodyText {
+              width: parent.width - moveUpButton.width - moveDownButton.width - 2 * parent.spacing
+              text: (index + 1) + ". " + root.displayOrderOutputLabel(modelData)
+                + "\n" + root.displayOrderConnectorLabel(modelData)
+                + (root.displayOrderActiveLabel(modelData) !== "" ? " · " + root.displayOrderActiveLabel(modelData) : "")
+              elide: Text.ElideRight
+            }
+            CursorButton {
+              id: moveUpButton
+              width: Style.space(86)
+              ownerView: "display"
+              rowKey: "display-order:up:" + outputKey
+              text: "Move up"
+              iconText: "↑"
+              onClicked: root.moveDisplayOrder(outputKey, -1)
+            }
+            CursorButton {
+              id: moveDownButton
+              width: Style.space(100)
+              ownerView: "display"
+              rowKey: "display-order:down:" + outputKey
+              text: "Move down"
+              iconText: "↓"
+              onClicked: root.moveDisplayOrder(outputKey, 1)
+            }
+          }
+        }
+      }
+      CursorButton {
+        width: parent.width
+        ownerView: "display"
+        rowKey: "display-order:save"
+        text: "Save for next session"
+        iconText: "✓"
+        onClicked: root.saveDisplayOrder(false)
+      }
+      CursorButton {
+        width: parent.width
+        ownerView: "display"
+        rowKey: "display-order:restart"
+        text: "Save and restart Gaming Mode"
+        iconText: "↻"
+        onClicked: root.openConfirmation("display-order-restart")
+      }
+      CursorButton {
+        width: parent.width
+        ownerView: "display"
+        rowKey: "display-order:automatic"
+        text: "Use automatic display order"
+        iconText: "A"
+        onClicked: root.resetDisplayOrder()
+      }
+      CursorButton {
+        width: parent.width
+        ownerView: "display"
+        rowKey: "display-order:refresh"
+        text: "Refresh display order"
+        iconText: "↻"
+        onClicked: root.refreshDisplayOrder()
+      }
+      HintText {
+        width: parent.width
+        text: "Save changes only the next Gaming Mode start. Restart closes games and Steam UI and may disconnect the current stream."
+      }
+
+      PanelSeparator { width: parent.width }
+      PanelSectionHeader { text: "Display modes"; width: parent.width }
       CursorButton {
         visible: root.outputList.length > 1
         width: parent.width

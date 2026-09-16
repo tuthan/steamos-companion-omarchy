@@ -1,0 +1,23 @@
+{
+  "protocol_version": 1,
+  "host_id": "fixture-host",
+  "display_order": {
+    "available": false,
+    "generation": 8,
+    "observed_at": "2026-09-16T03:20:03Z",
+    "output_keys": ["drm:card0:DP-1", "drm:card0:HDMI-A-2"],
+    "outputs": [
+      {"output_key": "drm:card0:DP-1", "display_name": "Desk monitor", "connector": "DP-1", "connected": true, "active": true},
+      {"output_key": "drm:card0:HDMI-A-2", "display_name": "Living room TV", "connector": "HDMI-A-2", "connected": true, "active": false}
+    ],
+    "saved_output_keys": ["drm:card0:DP-1", "drm:card0:HDMI-A-2"],
+    "restart_required": true,
+    "restart_available": true,
+    "adapter": "gamescope-session-prefer-output",
+    "unsupported": false,
+    "stale": true,
+    "ambiguous": false,
+    "previous_reading": false,
+    "reason": "Display topology changed; refresh before saving the order."
+  }
+}

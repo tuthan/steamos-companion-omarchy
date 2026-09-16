@@ -111,7 +111,8 @@ class ResponseSecurityTests(unittest.TestCase):
         for _ in range(18):
             deep = [deep]
         for value in (
-            {'outputs': [{}] * 17}, {'modes': [{}] * 257},
+            {'outputs': [{}] * 17}, {'output_keys': ['output:a'] * 17}, {'saved_output_keys': ['output:a'] * 17},
+            {'modes': [{}] * 257},
             {'id': 'x' * 1025}, {'reason': 'x' * 1025},
             {'data': deep}, {'data': [[0] * 256] * 20},
             {'data': {str(i): 0 for i in range(129)}}, {'number': float('nan')},

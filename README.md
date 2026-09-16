@@ -35,7 +35,10 @@ The Decky host must be installed and running before pairing.
 2. Select the intended host, choose **Request pairing**, compare the code with
    the one shown by the Decky plugin, and approve it on the Deck.
 3. Use **Host** for status, wake, suspend, restart, and shutdown.
-4. Use **Display** to preview, save, or revert a display mode.
+4. Use **Display** to preview, save, or revert a display mode. When the host
+   exposes display-order control, you can also reorder connected outputs, save
+   that order for the next session, or save it and restart Gaming Mode after
+   confirmation.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled

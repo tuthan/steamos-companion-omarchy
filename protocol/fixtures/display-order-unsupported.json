@@ -1,0 +1,20 @@
+{
+  "protocol_version": 1,
+  "host_id": "fixture-host",
+  "display_order": {
+    "available": false,
+    "generation": null,
+    "observed_at": null,
+    "output_keys": [],
+    "outputs": [],
+    "saved_output_keys": [],
+    "restart_required": false,
+    "restart_available": false,
+    "adapter": null,
+    "unsupported": true,
+    "stale": false,
+    "ambiguous": false,
+    "previous_reading": false,
+    "reason": "This host does not expose remote Gaming Mode display ordering."
+  }
+}
