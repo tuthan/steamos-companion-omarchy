@@ -1,12 +1,19 @@
 # SteamOS Companion — Omarchy client
 
-SteamOS Companion is an Omarchy bar widget for a paired SteamOS Companion Decky
-host. It discovers and pairs with the host, shows its status, wakes it, sends
-power commands, and provides display recovery. Sunshine status and restart are
-shown only when monitoring is enabled on the host.
+SteamOS Companion is a two-client system that shares one v1 protocol:
+
+- **Decky plugin** — runs on SteamOS as a **Client**, **Server**, or **Both**.
+- **Omarchy client** — this repository's Linux desktop bar widget and client.
+
+The Omarchy client discovers and pairs with a SteamOS Companion Decky host,
+shows its status, wakes it, sends power commands, and provides display recovery.
+Sunshine status and restart are shown only when monitoring is enabled on the
+host. It pairs with a Decky host in **Server** or **Both** mode.
 
 The Decky host is maintained separately in
 [tuthan/steamos-companion-decky](https://github.com/tuthan/steamos-companion-decky).
+
+**Website:** <https://steamos-companion.atas.tech/>
 
 SteamOS Companion is an independent open-source project and is not affiliated with or endorsed by Valve Corporation.
 
@@ -25,13 +32,16 @@ SteamOS Companion is an independent open-source project and is not affiliated wi
 
 ## Install
 
-Install from a reviewed checkout or repository:
+Install this client on a Linux desktop running Omarchy from a reviewed checkout
+or repository:
 
 ```sh
 omarchy plugin add https://github.com/tuthan/steamos-companion-omarchy.git --enable
 ```
 
-The Decky host must be installed and running before pairing.
+The Decky plugin must be installed and running as **Server** or **Both** on the
+SteamOS device you want to control before pairing. The Omarchy client is
+directory-installed and does not use the Decky ZIP or checksum artifact.
 
 ## Pair and use
 
