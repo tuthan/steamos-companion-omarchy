@@ -60,6 +60,39 @@ by default and is controlled from Decky settings. When it is disabled, the
 client does not show Sunshine controls or request a separate Sunshine poll;
 the normal status read remains the source of truth for all remote capabilities.
 
+## CLI evidence tool
+
+The checkout includes an executable `steamos-companion-ctl` wrapper. It uses the
+same `ClientCore` and private pairing state as the Omarchy panel, so run it from
+a reviewed checkout or the installed plugin directory; it does not create a
+second credential store. Global output flags go before the command.
+
+```sh
+./steamos-companion-ctl --json pair discover
+./steamos-companion-ctl --json pair start --host https://HOST-IP:PORT
+./steamos-companion-ctl --json pair poll
+./steamos-companion-ctl --json inspect
+./steamos-companion-ctl --json status
+./steamos-companion-ctl --json outputs
+./steamos-companion-ctl --json display save-current --output-id OUTPUT_ID --generation GENERATION
+./steamos-companion-ctl --json journal get OPERATION_ID
+```
+
+`display save-current` prompts for a typed confirmation after asking the
+operator to check the physical picture. In a non-interactive script, first
+check that picture and pass both `--yes --acknowledged`; the assertion is still
+sent only by this explicit command. A successful response includes the host
+operation and read-back profile. Record the operation ID, then use `journal get` to reconcile it. Use `--plain` instead of `--json` for line-oriented human
+output. Errors are emitted as a JSON object by default.
+
+`journal list` uses the additive `GET /v1/operations` route. Hosts that only
+implement the pinned `v0.5.16` protocol can still serve `journal get`, but need
+the matching host update before the list command is available. A 404 means the
+host build does not expose the list route; it is not acceptance evidence.
+
+The wrapper is included in the plugin checkout but is not installed as a
+system-wide command by the plugin manager.
+
 ## Security
 
 The client requires the system `python3` interpreter and uses only its standard

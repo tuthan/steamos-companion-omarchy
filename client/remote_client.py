@@ -19,6 +19,10 @@ def main() -> int:
             result = {"ok": True, "data": ClientCore().run(request)}
         except ClientError as exc:
             result = {"ok": False, "error": str(exc)[:256], "unknown": exc.unknown}
+            if exc.status is not None:
+                result["status"] = exc.status
+            if exc.retry_after is not None:
+                result["retry_after"] = exc.retry_after
         except Exception:
             result = {"ok": False, "error": "client helper failed", "unknown": False}
     sys.stdout.write(json.dumps(result, ensure_ascii=True, separators=(",", ":")) + "\n")

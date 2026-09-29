@@ -52,7 +52,7 @@ SAS_SCRYPT_P = 1
 SAS_MAXMEM = 64 * 1024 * 1024
 NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{20,32}$")
 INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
-PATH_RE = re.compile(r"^/v1/(?:pair/request|status|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|power|sunshine/restart|pair/revoke-self|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
+PATH_RE = re.compile(r"^/v1/(?:pair/request|status|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|display/save-current|power|sunshine/restart|pair/revoke-self|operations|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 DISPLAY_OUTPUT_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:|/-]{0,127}$")
 PIN_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -1165,12 +1165,31 @@ class ClientCore:
             return transport().request("GET", "/v1/display/outputs")
         if action == "display-order":
             return transport().request("GET", "/v1/display/order")
+        if action == "operations":
+            return transport().request("GET", "/v1/operations")
         if action == "operation":
             operation_id = arguments.get("operation_id")
             if not isinstance(operation_id, str) or not ID_RE.fullmatch(operation_id):
                 raise ClientError("operation_id is invalid")
             response = transport().request("GET", "/v1/operations/" + operation_id)
             self._reconcile_operation(state, response)
+            return response
+        if action == "save-current":
+            output_id = arguments.get("output_id")
+            if not isinstance(output_id, str) or not ID_RE.fullmatch(output_id):
+                raise ClientError("output_id is invalid")
+            generation = _display_order_generation(arguments.get("generation"))
+            if arguments.get("visible") is not True:
+                raise ClientError("saving the current mode requires explicit picture confirmation")
+            request_id = _new_request_id(arguments.get("request_id"))
+            body = {
+                "request_id": request_id,
+                "output_id": output_id,
+                "generation": generation,
+                "visible": True,
+            }
+            response = transport().request("POST", "/v1/display/save-current", body)
+            self._remember_operation(state, response, kind=action, request_id=request_id)
             return response
         if action in {"display-order-save", "display-order-restart"}:
             keys = _display_order_keys(arguments.get("output_keys"))

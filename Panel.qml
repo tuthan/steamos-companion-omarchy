@@ -66,6 +66,7 @@ Panel {
   property string selectedModeId: ""
   property bool showNonstandardRefreshRates: false
   property bool previewMutationBusy: false
+  property var saveCurrentTarget: null
   property int countdownSeconds: 0
   property var displayOrderData: null
   property var displayOrderLatestData: null
@@ -153,6 +154,14 @@ Panel {
       if (outputList[index].id === root.selectedOutputId) return outputList[index]
     }
     return outputList.length > 0 ? outputList[0] : null
+  }
+  readonly property var currentSavedProfile: {
+    var profiles = root.outputsData && Array.isArray(root.outputsData.profiles) ? root.outputsData.profiles : []
+    if (!root.currentOutput) return null
+    for (var index = 0; index < profiles.length; index++) {
+      if (String(profiles[index].output_id) === String(root.currentOutput.id)) return profiles[index]
+    }
+    return null
   }
   readonly property var visibleModeList: filteredModeList()
   readonly property var selectedMode: {
@@ -838,7 +847,7 @@ Panel {
     // would make the signature differ every two seconds, rebuilding every mode
     // delegate and losing hover and selection with it. Preview is mirrored
     // separately, so the inventory alone decides whether anything changed.
-    var signature = JSON.stringify({outputs: data ? data.outputs : null, reason: data ? data.reason : null})
+    var signature = JSON.stringify({outputs: data ? data.outputs : null, profiles: data ? data.profiles : null, reason: data ? data.reason : null})
     root.previewData = data && data.preview ? data.preview : null
     if (signature === root.outputsSignature) return
     root.outputsSignature = signature
@@ -949,6 +958,7 @@ Panel {
     root.cursorActive = false
     flick.contentY = 0
     if (next === "display") root.refresh()
+    else if (next === "settings" && root.paired) root.refreshConnectionDetails()
   }
 
   function viewByDelta(delta) {
@@ -988,6 +998,7 @@ Panel {
   function displayRowKeys() {
     var keys = root.displayOrderRowKeys()
     if (root.outputList.length > 1) keys.push("output")
+    keys.push("save-current")
     var modes = root.visibleModeList
     for (var index = 0; index < modes.length; index++) keys.push("mode:" + modes[index].id)
     keys.push("restore")
@@ -1046,6 +1057,9 @@ Panel {
       if (key === "display-order:refresh") return root.paired && !root.actionBusy
         && root.displayOrderMutation === "" && !root.displayOrderRefreshRequested
       if (key === "output") return root.outputList.length > 1 && !root.previewData
+      if (key === "save-current") return root.paired && !!root.currentOutput
+        && !!root.currentOutput.current_mode_id && !root.previewData
+        && !root.previewMutationBusy && !root.actionBusy
       if (key === "restore") return root.paired && !root.previewData && !root.actionBusy
       return key.indexOf("mode:") === 0
     }
@@ -1131,6 +1145,7 @@ Panel {
       else if (key === "display-order:automatic") root.resetDisplayOrder()
       else if (key === "display-order:refresh") root.refreshDisplayOrder()
       else if (key === "output") cycleOutput()
+      else if (key === "save-current") openSaveCurrentConfirmation()
       else if (key === "restore") restoreWorking()
       else if (key.indexOf("mode:") === 0) root.selectedModeId = key.slice(5)
     } else {
@@ -1157,13 +1172,17 @@ Panel {
     confirmDialog.selectedIndex = 0
   }
 
-  function cancelConfirmation() { confirmationKind = "" }
+  function cancelConfirmation() {
+    confirmationKind = ""
+    root.saveCurrentTarget = null
+  }
 
   function confirmMessage() {
     if (confirmationKind === "suspend") return "Suspend the exact paired SteamOS host? The session will be interrupted and wake uses the automatically detected LAN path."
     if (confirmationKind === "restart") return "Restart the exact paired SteamOS host? Any running session will be interrupted."
     if (confirmationKind === "shutdown") return "Shut down the exact paired SteamOS host? Wake later requires a powered NIC and the automatically detected LAN path."
     if (confirmationKind === "display-order-restart") return "Save this display order and restart Gaming Mode on the paired SteamOS host? Running games and the Steam UI will close, and the current stream may disconnect."
+    if (confirmationKind === "save-current") return "Is the picture on the paired host's display correct right now? This is what Restore saved display will return to."
     if (confirmationKind === "revoke") return "Revoke this client's host credential? The Omarchy copy will be forgotten after the host accepts the request."
     return "Forget this local pairing? This does not revoke the host credential while offline."
   }
@@ -1183,6 +1202,10 @@ Panel {
     } else if (kind === "display-order-restart") {
       if (root.displayOrderRestartAvailable()) root.saveDisplayOrder(true)
       else root.actionMessage = "Display order restart is no longer available; refresh before trying again"
+    } else if (kind === "save-current") {
+      var target = root.saveCurrentTarget
+      root.saveCurrentTarget = null
+      root.saveCurrentDisplay(target)
     } else if (kind === "revoke") {
       remote("revoke", {}, function(result) {
         if (!result.ok) { root.actionMessage = friendlyError(result.error); return }
@@ -1218,6 +1241,7 @@ Panel {
     root.displayOrderRefreshRequested = false
     root.displayOrderError = ""
     root.operationData = null
+    root.saveCurrentTarget = null
     root.pendingPairing = null
     root.connectionState = "idle"
     root.connectionDetail = ""
@@ -1254,6 +1278,77 @@ Panel {
       if (capabilities[keys[index]] !== "available") return true
     }
     return false
+  }
+
+  function openSaveCurrentConfirmation() {
+    var output = root.currentOutput
+    if (!root.paired || !output || !output.current_mode_id) {
+      root.actionMessage = "No current display mode is available to save"
+      return
+    }
+    if (root.previewData) {
+      root.actionMessage = "Waiting for this preview to be kept or reverted"
+      return
+    }
+    root.saveCurrentTarget = {output_id: String(output.id), generation: output.generation}
+    root.openConfirmation("save-current")
+  }
+
+  function saveCurrentDisplay(target) {
+    if (!target || root.previewData || root.previewMutationBusy) return
+    root.previewMutationBusy = true
+    root.actionMessage = "Save requested; checking the host read-back"
+    remote("save-current", {
+      output_id: target.output_id,
+      generation: target.generation,
+      visible: true
+    }, function(result) {
+      root.previewMutationBusy = false
+      if (!result.ok) {
+        if (result.status === 404) {
+          var hasAlternative = false
+          for (var index = 0; index < root.visibleModeList.length; index++) {
+            if (root.currentOutput && root.visibleModeList[index].id !== root.currentOutput.current_mode_id) hasAlternative = true
+          }
+          if (!root.currentSavedProfile && !hasAlternative)
+            root.actionMessage = "No recovery mode can be saved with this server version"
+          else if (hasAlternative)
+            root.actionMessage = "This server version cannot save the current mode. Preview and keep an advertised alternative mode instead."
+          else
+            root.actionMessage = root.friendlyError(result.error)
+        } else if (result.status === 409 && /preview/i.test(String(result.error || ""))) {
+          root.actionMessage = "A display preview is active; keep or revert it first"
+        } else if (result.status === 409) {
+          root.actionMessage = "The display target changed; refresh and try again"
+        } else if (result.status === 503) {
+          root.actionMessage = "Steam display bridge is unavailable"
+        } else if (result.status === 400) {
+          root.actionMessage = "Save current was rejected; the explicit confirmation did not reach the host correctly"
+        } else if (result.unknown === true) {
+          root.actionMessage = "Result not confirmed; reconnect and check the original operation before retrying"
+        } else {
+          root.actionMessage = root.friendlyError(result.error)
+        }
+        return
+      }
+      var data = result.data || {}
+      var operation = data.operation
+      var profile = data.profile
+      root.operationData = operation || null
+      if (!operation || typeof operation.id !== "string") {
+        root.actionMessage = "Result not confirmed; the host response omitted its operation record"
+        return
+      }
+      if (operation.state === "succeeded" && profile && profile.mode && profile.verified_at) {
+        root.actionMessage = "Requested. Host read-back confirmed the recovery mode: "
+          + root.modeLabel(profile.mode) + " · verified " + String(profile.verified_at)
+      } else if (operation.state === "failed") {
+        root.actionMessage = "Save failed: " + root.friendlyError(operation.reason || operation.outcome)
+      } else {
+        root.actionMessage = "Result not confirmed; check operation " + operation.id + " before retrying"
+      }
+      root.refreshAfterAction(root.actionMessage)
+    })
   }
 
   function restoreWorking() {
@@ -1554,6 +1649,30 @@ Panel {
     return output.name || output.description || output.id
   }
 
+  function outputNameForId(outputId) {
+    var outputs = root.outputList
+    for (var index = 0; index < outputs.length; index++) {
+      if (String(outputs[index].id) === String(outputId)) return root.outputLabel(outputs[index])
+    }
+    return String(outputId || "unknown output")
+  }
+
+  function profileIdentityLabel(profile) {
+    if (!profile) return "Unavailable"
+    var identity = profile.output_identity
+    if (identity && typeof identity === "object") {
+      try { return JSON.stringify(identity).slice(0, 160) } catch (error) { return "identity unavailable" }
+    }
+    return String(profile.output_id || "identity unavailable")
+  }
+
+  function refreshConnectionDetails() {
+    if (!root.opened || !root.paired) return
+    enqueueHelper("outputs", {timeout: 2.5}, function(result) {
+      if (result.ok) root.applyOutputs(result.data)
+    }, true)
+  }
+
   function cycleOutput() {
     var outputs = root.outputList
     if (outputs.length < 2) return
@@ -1814,6 +1933,7 @@ Panel {
     pollGeneration++
     editingPairing = false
     confirmationKind = ""
+    root.saveCurrentTarget = null
     root.helperQueue = root.helperQueue.filter(function(job) { return job.poll !== true })
   }
 
@@ -1994,6 +2114,8 @@ Panel {
         anchors.fill: parent
         opened: root.modalOpen
         message: root.confirmMessage()
+        cancelText: "Cancel"
+        confirmText: root.confirmationKind === "save-current" ? "Save as recovery mode" : "Confirm"
         onCanceled: root.cancelConfirmation()
         onConfirmed: root.confirmConfirmation()
       }
@@ -2102,6 +2224,26 @@ Panel {
       spacing: Style.space(8)
 
       PanelSectionHeader { text: "Display"; width: parent.width }
+      Column {
+        visible: !root.currentSavedProfile
+        width: parent.width
+        spacing: Style.space(4)
+        BodyText { width: parent.width; text: "No recovery mode saved. Check the picture, then save the current display as recovery mode." }
+        CursorButton {
+          width: parent.width
+          ownerView: "display"
+          rowKey: "save-current"
+          text: "Save current display as recovery mode"
+          iconText: "!"
+          enabled: root.rowEnabled("save-current")
+          onClicked: root.openSaveCurrentConfirmation()
+        }
+        HintText {
+          visible: !!root.previewData
+          width: parent.width
+          text: "Waiting for this preview to be kept or reverted"
+        }
+      }
       PanelSectionHeader { text: "Display order"; width: parent.width }
       HintText {
         width: parent.width
@@ -2347,6 +2489,31 @@ Panel {
         }
       }
 
+      Column {
+        visible: !!root.currentSavedProfile
+        width: parent.width
+        spacing: Style.space(4)
+        CursorButton {
+          width: parent.width
+          ownerView: "display"
+          rowKey: "save-current"
+          text: "Save current display as recovery mode"
+          iconText: "✓"
+          enabled: root.rowEnabled("save-current")
+          onClicked: root.openSaveCurrentConfirmation()
+        }
+        HintText {
+          width: parent.width
+          text: "Saved on " + root.outputLabel(root.currentOutput) + ": "
+            + root.modeLabel(root.currentSavedProfile.mode) + " · verified "
+            + String(root.currentSavedProfile.verified_at || "time unavailable")
+        }
+        HintText {
+          visible: !!root.previewData
+          width: parent.width
+          text: "Waiting for this preview to be kept or reverted"
+        }
+      }
       CursorButton {
         width: parent.width
         ownerView: "display"
@@ -2531,6 +2698,49 @@ Panel {
           wrapMode: Text.WrapAnywhere
           text: "Pinned TLS identity: " + root.localData.certificate_fingerprint
         }
+      }
+
+      PanelSeparator { width: parent.width }
+      PanelSectionHeader { text: "Connection details"; width: parent.width }
+      HintText {
+        visible: root.paired
+        width: parent.width
+        text: "Pinned host: " + String(root.localData.host_id || "identity unavailable")
+          + " · endpoint: " + String(root.localData.endpoint || "unavailable")
+      }
+      Column {
+        visible: root.paired && !!root.outputsData
+        width: parent.width
+        spacing: Style.space(4)
+        Repeater {
+          model: root.outputsData && Array.isArray(root.outputsData.profiles) ? root.outputsData.profiles : []
+          delegate: Column {
+            required property var modelData
+            width: parent.width
+            spacing: Style.space(2)
+            BodyText {
+              width: parent.width
+              text: "Saved recovery mode · " + root.outputNameForId(modelData.output_id)
+                + " · " + root.modeLabel(modelData.mode)
+            }
+            HintText {
+              width: parent.width
+              wrapMode: Text.WrapAnywhere
+              text: "Output identity: " + root.profileIdentityLabel(modelData)
+                + " · verified " + String(modelData.verified_at || "time unavailable")
+            }
+          }
+        }
+        HintText {
+          visible: !!root.outputsData && (!Array.isArray(root.outputsData.profiles) || root.outputsData.profiles.length === 0)
+          width: parent.width
+          text: "No recovery mode saved"
+        }
+      }
+      HintText {
+        visible: root.paired && !root.outputsData
+        width: parent.width
+        text: "Saved recovery details are not available yet; open Display to refresh them."
       }
 
       PanelSeparator { width: parent.width }
