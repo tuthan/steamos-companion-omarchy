@@ -744,13 +744,32 @@ class DiagnosticsCommandTests(Leaks):
             self.assertEqual("2026-10-04T01:02:03Z", command_data(self.core)[0]["generated_at"])
 
     def test_local_carries_counts_and_flags_only(self):
+        # The pinned status exchange says the credential holds all three scopes; the saved pairing says two.
         data, _ = command_data(self.core)
-        self.assertEqual({"paired": True, "scopes": ["status.read", "display.control"], "wake_configured": True, "pending_operation_present": True}, data["local"])
+        self.assertEqual({"paired": True, "scopes": ["status.read", "power.control", "display.control"], "wake_configured": True, "pending_operation_present": True}, data["local"])
         bare = paired_core(self.directory, wake_mac=None, wake_interface=None, wake_host_interface=None, pending_operation=None)
         data, _ = command_data(bare)
-        self.assertEqual({"paired": True, "scopes": ["status.read", "display.control"], "wake_configured": False, "pending_operation_present": False}, data["local"])
+        self.assertEqual({"paired": True, "scopes": ["status.read", "power.control", "display.control"], "wake_configured": False, "pending_operation_present": False}, data["local"])
         for value in data["local"].values():
             self.assertIsInstance(value, (bool, list))
+
+    def test_local_scopes_are_what_the_host_just_said_else_what_was_saved(self):
+        view_only = real("status")
+        view_only["credential"] = {"scopes": ["status.read"]}
+        older = real("status")
+        del older["credential"]
+        for label, routes, expected in (
+            ("the host reports view only", real_routes(status=(200, view_only)), ["status.read"]),
+            ("the host reports nothing is allowed", real_routes(status=(200, {**real("status"), "credential": {"scopes": []}})), []),
+            ("an older host does not say", real_routes(status=(200, older)), ["status.read", "display.control"]),
+            ("a block that says nothing", real_routes(status=(200, {**real("status"), "credential": "all"})), ["status.read", "display.control"]),
+            ("the status read fails", real_routes(status=(503, {"error": "down", "message": "down"})), ["status.read", "display.control"]),
+        ):
+            with self.subTest(label):
+                before = self.core.store.path.read_bytes()
+                data, _ = command_data(self.core, routes)
+                self.assertEqual(expected, data["local"]["scopes"])
+                self.assertEqual(before, self.core.store.path.read_bytes(), "diagnostics still writes nothing")
 
     def test_nothing_from_the_local_pairing_state_or_the_hosts_secrets_is_in_the_output(self):
         for flags in (("--json",), ("--plain",), ()):
@@ -780,11 +799,13 @@ class DiagnosticsCommandTests(Leaks):
         self.assertIn("data.format: steamos-companion-omarchy-diagnostics-v1", lines)
         self.assertIn("data.client.app: omarchy", lines)
         self.assertIn("data.local.paired: True", lines)
-        self.assertIn("data.local.scopes[1]: display.control", lines)
+        self.assertIn("data.local.scopes[1]: power.control", lines)
         self.assertIn(f"data.report.format: {REPORT_FORMAT}", lines)
         self.assertIn("data.report.host.plugin_version: 0.0.0-fixture", lines)
         self.assertIn("data.report.journal.count: 5", lines)
-        self.assertTrue(all(re.match(r"^[\x20-\x7e]+$", line) for line in lines))
+        # The one line that is not ASCII is the Access line, worded as the Deck words it, with its middle dot.
+        self.assertEqual("Access on this host: Full access \u00b7 Status \u00b7 Power \u00b7 Display", lines[0])
+        self.assertTrue(all(re.match(r"^[\x20-\x7e]+$", line) for line in lines[1:]))
         self.assertFalse(output.lstrip().startswith("{"))
 
     def test_one_authenticated_get_per_route_in_a_fixed_order_with_no_body_and_no_query(self):

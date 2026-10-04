@@ -14,8 +14,12 @@ import contextlib
 import copy
 import http.client
 import io
+import itertools
 import json
+import re
+import shutil
 import ssl
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -30,6 +34,7 @@ PIN = "sha256:" + "a" * 64
 FULL = ["status.read", "power.control", "display.control"]
 VIEW_ONLY = ["status.read"]
 SCHEMA = json.loads((ROOT / "protocol" / "schema.json").read_text())
+DECKY_FRONTEND = Path("/home/hvo/Projects/steamos-companion-decky/host/frontend/index.js")
 
 
 def fixture(group: str, name: str) -> dict:
@@ -778,6 +783,182 @@ class ForbiddenTests(unittest.TestCase):
                     self.assertNotIn("allowed", str(raised.exception))
         self.assertEqual(before, self.core.store.path.read_bytes(), "the pairing is exactly as it was")
         self.assertTrue(self.core.inspect()["paired"])
+
+
+NOTE = "The owner of the host chose this and can change it there."
+# Every answer the Deck gives for a held set, spelled out rather than computed: (role, summary, note).
+WORDING = {
+    (): ("No access", "No permissions", NOTE),
+    ("status.read",): ("View only", "Status", NOTE),
+    ("power.control",): ("Custom", "Power", NOTE),
+    ("display.control",): ("Custom", "Display", NOTE),
+    ("status.read", "power.control"): ("Custom", "Status \u00b7 Power", NOTE),
+    ("status.read", "display.control"): ("Custom", "Status \u00b7 Display", NOTE),
+    ("power.control", "display.control"): ("Custom", "Power \u00b7 Display", NOTE),
+    ("status.read", "power.control", "display.control"): ("Full access", "Status \u00b7 Power \u00b7 Display", ""),
+}
+
+
+def view_of(scopes: Any) -> tuple[str, str, str]:
+    view = client_core.access_view(scopes)
+    return view["role"], view["summary"], view["note"]
+
+
+class AccessWordingTests(unittest.TestCase):
+    def test_every_set_of_scopes_is_worded_as_the_deck_words_it(self):
+        for held, words in WORDING.items():
+            with self.subTest(held=held):
+                self.assertEqual(words, view_of(list(held)))
+                self.assertEqual("Access on this host", client_core.access_view(list(held))["label"])
+
+    def test_the_order_an_owner_sees_is_fixed_whatever_order_the_host_listed_them(self):
+        for held, words in WORDING.items():
+            for order in itertools.permutations(held):
+                with self.subTest(order=order):
+                    self.assertEqual(words, view_of(list(order)))
+        self.assertEqual("Status \u00b7 Display", view_of(["display.control", "status.read"])[1])
+
+    def test_unknown_repeated_and_odd_values_count_for_nothing(self):
+        self.assertEqual(WORDING[("status.read",)], view_of(["status.read", "status.read", "sunshine.control", "admin", 5, None, {}, [], "status.read\n"]))
+        self.assertEqual(WORDING[()], view_of(["sunshine.control"]))
+        self.assertEqual(WORDING[FULL_TUPLE], view_of([*FULL, "sunshine.control", "x", "power.control"]))
+        for junk in (None, "status.read", 5, True, {}, {"status.read": True}, ("status.read",)):
+            with self.subTest(junk=junk):
+                self.assertEqual(WORDING[()], view_of(junk))
+
+    @unittest.skipUnless(shutil.which("node") and DECKY_FRONTEND.exists(), "Node and the Decky checkout are required")
+    def test_the_wording_equals_the_decky_frontend_for_every_set_and_for_junk(self):
+        found = re.search(r"/\* access:begin \*/([\s\S]*?)/\* access:end \*/", DECKY_FRONTEND.read_text())
+        self.assertTrue(found, "the Decky access block moved")
+        inputs: list[Any] = [list(order) for held in WORDING for order in itertools.permutations(held)]
+        inputs += [None, "status.read", 5, True, {}, {"status.read": True}, [], ["x"], [1, None, {}, []], ["status.read", "status.read"], [*FULL, "sunshine.control"], ["sunshine.control", "status.read"], ["status.read\n", "power.control "]]
+        script = """
+const fs = require('node:fs');
+const vm = require('node:vm');
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+const decky = vm.runInNewContext(`${input.decky}; ({accessRole, accessSummary, accessNote})`, {});
+process.stdout.write(JSON.stringify(input.cases.map(scopes => [decky.accessRole(scopes), decky.accessSummary(scopes), decky.accessNote(scopes)])));
+"""
+        result = subprocess.run(["node", "-e", script], input=json.dumps({"decky": found.group(1), "cases": inputs}), capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, result.returncode, result.stderr[-400:])
+        theirs = json.loads(result.stdout)
+        self.assertEqual(len(inputs), len(theirs))
+        for scopes, expected in zip(inputs, theirs):
+            with self.subTest(scopes=scopes):
+                self.assertEqual(tuple(expected), view_of(scopes))
+
+
+FULL_TUPLE = tuple(FULL)
+
+
+class CliAccessTests(unittest.TestCase):
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+        self.directory = self._directory.name
+
+    def run_cli(self, core: client_core.ClientCore | None, table: dict[str, Any], *argv: str, stdout: Any = None):
+        out = io.StringIO() if stdout is None else stdout
+        with serving(table) as connection, mock.patch.object(cli, "ClientCore", lambda: core), contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            code = cli.main(list(argv))
+        return code, out, connection
+
+    def test_status_shows_the_access_line_beside_the_hosts_reply_in_json(self):
+        cases = {
+            "sunshine-running": ("Full access", "Status \u00b7 Power \u00b7 Display", ""),
+            "view-only-credential": ("View only", "Status", NOTE),
+            "scopes-changed-by-owner": ("Custom", "Status \u00b7 Display", NOTE),
+        }
+        for name, (role, summary, note) in cases.items():
+            with self.subTest(name):
+                body = status_body(name)
+                code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(body), "--json", "status")
+                reply = json.loads(out.getvalue())
+                self.assertEqual(0, code)
+                self.assertEqual({"label": "Access on this host", "role": role, "summary": summary, "note": note}, reply["access"])
+                self.assertEqual(body, reply["data"], "the host's own reply is printed as it is")
+                self.assertEqual({"ok", "data", "access"}, set(reply))
+                self.assertNotIn("\u00b7", out.getvalue(), "JSON stays ASCII; the dot is an escape")
+
+    def test_status_shows_the_access_line_in_plain_words(self):
+        for name, first in (
+            ("sunshine-running", ["Access on this host: Full access \u00b7 Status \u00b7 Power \u00b7 Display"]),
+            ("view-only-credential", ["Access on this host: View only \u00b7 Status", NOTE]),
+            ("scopes-changed-by-owner", ["Access on this host: Custom \u00b7 Status \u00b7 Display", NOTE]),
+        ):
+            with self.subTest(name):
+                _code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(status_body(name)), "--plain", "status")
+                lines = out.getvalue().splitlines()
+                self.assertEqual(first, lines[: len(first)])
+                self.assertTrue(lines[len(first)].startswith("data."), "the flat lines follow")
+                self.assertEqual(1, sum(1 for line in lines if line.startswith("Access on this host")))
+                self.assertFalse(any(line.startswith("access.") or line.startswith("data.access") for line in lines))
+
+    def test_the_access_line_follows_what_the_host_reported_not_what_was_asked_for_at_pairing(self):
+        core = paired_core(self.directory, FULL)
+        _code, out, _ = self.run_cli(core, routes(status_body("view-only-credential")), "--plain", "status")
+        self.assertEqual("Access on this host: View only \u00b7 Status", out.getvalue().splitlines()[0])
+        self.assertEqual(VIEW_ONLY, core.store.load()["scopes"])
+
+    def test_an_older_host_leaves_the_saved_scopes_standing_and_the_line_says_so(self):
+        core = paired_core(self.directory, ["status.read", "display.control"])
+        _code, out, connection = self.run_cli(core, routes(status_body(credential=Ellipsis)), "--json", "status")
+        access = json.loads(out.getvalue())["access"]
+        self.assertEqual(("Custom", "Status \u00b7 Display", NOTE), (access["role"], access["summary"], access["note"]))
+        self.assertEqual([("GET", "/v1/status")], connection.paths(), "the saved scopes are read locally, not asked for")
+
+    def test_a_host_that_says_nothing_is_allowed_shows_no_access(self):
+        _code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(status_body(credential={"scopes": []})), "--plain", "status")
+        self.assertEqual(["Access on this host: No access \u00b7 No permissions", NOTE], out.getvalue().splitlines()[:2])
+
+    def test_a_hostile_block_is_worded_from_what_survives_the_decoder(self):
+        body = status_body(credential={"scopes": ["status.read", "sunshine.control", "\u001b[31mred", "status.read"], "role": "owner"})
+        _code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(body), "--plain", "status")
+        self.assertEqual(["Access on this host: View only \u00b7 Status", NOTE], out.getvalue().splitlines()[:2])
+        self.assertNotIn("\x1b", out.getvalue())
+
+    def test_a_host_cannot_forge_the_line_by_sending_an_access_key(self):
+        forged = {"label": "Access on this host", "role": "Full access", "summary": "Everything", "note": ""}
+        _code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(status_body("view-only-credential", access=forged)), "--json", "status")
+        reply = json.loads(out.getvalue())
+        self.assertEqual("View only", reply["access"]["role"])
+        _code, out, _ = self.run_cli(paired_core(self.directory, FULL), routes(status_body("view-only-credential", access=forged)), "--plain", "status")
+        self.assertEqual("Access on this host: View only \u00b7 Status", out.getvalue().splitlines()[0])
+
+    def test_diagnostics_shows_the_line_for_what_its_own_read_found(self):
+        core = paired_core(self.directory, FULL)
+        table = {"/v1/status": (200, status_body("scopes-changed-by-owner")), "/v1/display/outputs": (404, {"error": "not_found"}), "/v1/drm": (404, {"error": "not_found"}), "/v1/operations": (404, {"error": "not_found"})}
+        _code, out, _ = self.run_cli(core, table, "--json", "diagnostics")
+        reply = json.loads(out.getvalue())
+        self.assertEqual(["status.read", "display.control"], reply["data"]["local"]["scopes"])
+        self.assertEqual(("Custom", "Status \u00b7 Display"), (reply["access"]["role"], reply["access"]["summary"]))
+        self.assertEqual({"format", "generated_at", "client", "local", "report"}, set(reply["data"]), "the document itself is unchanged")
+        self.assertEqual(FULL, core.store.load()["scopes"], "and nothing is written")
+        _code, out, _ = self.run_cli(core, table, "--plain", "diagnostics")
+        self.assertEqual(["Access on this host: Custom \u00b7 Status \u00b7 Display", NOTE], out.getvalue().splitlines()[:2])
+
+    def test_diagnostics_names_no_access_line_when_nothing_is_paired(self):
+        for flag in ("--json", "--plain"):
+            with self.subTest(flag):
+                core = client_core.ClientCore(self.directory)
+                _code, out, connection = self.run_cli(core, {}, flag, "diagnostics")
+                self.assertNotIn("Access on this host", out.getvalue())
+                self.assertEqual([], connection.requests)
+
+    def test_no_other_command_prints_the_line(self):
+        core = paired_core(self.directory, FULL)
+        for argv in (("outputs",), ("journal", "list"), ("inspect",), ("sunshine", "status")):
+            with self.subTest(argv=argv):
+                _code, out, _ = self.run_cli(core, routes(), "--plain", *argv)
+                self.assertNotIn("Access on this host", out.getvalue())
+
+    def test_a_terminal_that_cannot_show_the_dot_gets_an_escape_not_a_failed_command(self):
+        raw = io.BytesIO()
+        stdout = io.TextIOWrapper(raw, encoding="ascii")
+        code, _, _ = self.run_cli(paired_core(self.directory, FULL), routes(status_body("view-only-credential")), "--plain", "status", stdout=stdout)
+        stdout.flush()
+        self.assertEqual(0, code)
+        self.assertEqual("Access on this host: View only \\xb7 Status", raw.getvalue().decode("ascii").splitlines()[0])
 
 
 if __name__ == "__main__":

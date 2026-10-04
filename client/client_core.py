@@ -719,6 +719,32 @@ def _optional_self_check(value: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
+def access_held(scopes: Any) -> list[str]:
+    """The grantable scopes among `scopes`, once each, in the order an owner sees them."""
+    present = scopes if isinstance(scopes, list) else []
+    return [scope for scope in SCOPE_LABELS if scope in present]
+
+
+def access_view(scopes: Any) -> dict[str, str]:
+    """What a pairing may do, worded as the Deck words it (accessRole, accessSummary and accessNote there).
+
+    Everything else a client says about access comes from this one place.
+    """
+    held = access_held(scopes)
+    if len(held) == len(SCOPE_LABELS):
+        role = "Full access"
+    elif not held:
+        role = "No access"
+    else:
+        role = "View only" if held == ["status.read"] else "Custom"
+    return {
+        "label": "Access on this host",
+        "role": role,
+        "summary": " \u00b7 ".join(SCOPE_LABELS[scope] for scope in held) or "No permissions",
+        "note": "" if role == "Full access" else "The owner of the host chose this and can change it there.",
+    }
+
+
 def credential_scopes(value: Any) -> list[str] | None:
     """The grantable scopes the host says this credential holds now, or None when it did not say.
 
@@ -1708,7 +1734,9 @@ class ClientCore:
         go straight into the pure report composer, which names facts and copies
         no record. Nothing is written, so unlike a status poll this does not
         refresh the saved Wake-on-LAN target. `local` holds only counts and
-        flags: no endpoint, host or client identity, pin, MAC, interface or token.
+        flags: no endpoint, host or client identity, pin, MAC, interface or token. A
+        status read here does not refresh the saved scopes either; `local.scopes` is what
+        the host just reported, or what was saved when it did not.
         """
         state = self.store.load(required=False)
         seconds = self._timeout(timeout)
@@ -1729,13 +1757,15 @@ class ClientCore:
                 except Exception:  # a section that cannot be read is null, never an error
                     bodies[name] = None
         paired = state is not None
+        reported = credential_scopes(bodies.get("status"))
+        held = reported if reported is not None else (state["scopes"] if paired else [])
         return {
             "format": DIAGNOSTICS_FORMAT,
             "generated_at": _utc_now(),
             "client": {"app": "omarchy", "version": _client_version()},
             "local": {
                 "paired": paired,
-                "scopes": [scope for scope in state["scopes"] if scope in ALLOWED_SCOPES] if paired else [],
+                "scopes": [scope for scope in held if scope in ALLOWED_SCOPES],
                 "wake_configured": paired and bool(state.get("wake_mac")),
                 "pending_operation_present": paired and isinstance(state.get("pending_operation"), dict),
             },

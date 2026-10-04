@@ -8,7 +8,7 @@ import json
 import sys
 from typing import Any
 
-from .client_core import ClientCore, ClientError, validate_endpoint
+from .client_core import ClientCore, ClientError, access_view, credential_scopes, validate_endpoint
 
 
 _SECRET_FIELDS = {
@@ -62,10 +62,20 @@ def _plain(value: Any, prefix: str = "") -> list[str]:
     return [f"{prefix}: {value}".strip()]
 
 
+def _writable(text: str) -> str:
+    """Text the terminal can take: a locale that cannot show a separator gets an escape, not a failed command."""
+    encoding = getattr(sys.stdout, "encoding", None)
+    return text.encode(encoding, "backslashreplace").decode(encoding) if encoding else text
+
+
 def _emit(value: dict[str, Any], output_format: str) -> None:
     safe = _redact(value)
     if output_format == "plain":
-        sys.stdout.write("\n".join(_plain(safe)) + "\n")
+        access = safe.pop("access", None)
+        lines = _plain(safe)
+        if access:
+            lines = [f"{access['label']}: {access['role']} \u00b7 {access['summary']}", *([access["note"]] if access["note"] else []), *lines]
+        sys.stdout.write(_writable("\n".join(lines) + "\n"))
     else:
         sys.stdout.write(json.dumps(safe, ensure_ascii=True, separators=(",", ":")) + "\n")
     sys.stdout.flush()
@@ -307,6 +317,25 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
     raise ClientError("command is unsupported")
 
 
+def _access(command: str, core: ClientCore, result: dict[str, Any]) -> dict[str, str] | None:
+    """What this pairing may do on the host, for the two commands that read it.
+
+    It sits beside the data, not in it, so the host's own reply and the diagnostics document
+    are printed as they are. A host that did not say leaves the saved scopes standing.
+    """
+    if command == "status":
+        scopes = credential_scopes(result)
+        if scopes is None:
+            saved = core.run({"action": "inspect"})
+            scopes = saved.get("scopes") if isinstance(saved, dict) else None
+    elif command == "diagnostics":
+        local = result.get("local") if isinstance(result, dict) else None
+        scopes = local.get("scopes") if isinstance(local, dict) and local.get("paired") is True else None
+    else:
+        return None
+    return None if scopes is None else access_view(scopes)
+
+
 def _exit_code(value: dict[str, Any]) -> int:
     operation = value.get("operation")
     if not isinstance(operation, dict):
@@ -325,8 +354,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = _parser().parse_args(raw_args)
         output_format = args.output_format
-        result = _dispatch(args, ClientCore())
-        _emit({"ok": True, "data": result}, output_format)
+        core = ClientCore()
+        result = _dispatch(args, core)
+        access = _access(args.command, core, result)
+        _emit({"ok": True, "data": result, **({"access": access} if access else {})}, output_format)
         return _exit_code(result)
     except _ArgumentError as exc:
         _emit({"ok": False, "error": str(exc)[:256], "unknown": False}, output_format)
