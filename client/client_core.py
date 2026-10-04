@@ -51,6 +51,9 @@ GRANTABLE_SCOPES = frozenset({"status.read", "power.control", "display.control"}
 SCOPE_LABELS = {"status.read": "Status", "power.control": "Power", "display.control": "Display"}
 # What each action that changes the host needs from the pairing. Reads, the journal and
 # revoking one's own pairing need only a valid credential, so they are not listed.
+# A host's own words for refusing a missing scope (the pinned contract's power/forbidden fixtures), and ours.
+HOST_SCOPE_REFUSAL = "credential does not have the required scope"
+SCOPE_REFUSED = "The host owner has not allowed this action for this pairing."
 ACTION_SCOPES = {
     "power": "power.control",
     "sunshine-restart": "power.control",
@@ -112,6 +115,10 @@ class ClientError(RuntimeError):
         self.unknown = unknown
         self.status = status
         self.retry_after = retry_after
+
+
+class ScopeRefused(ClientError):
+    """The host refused a change with 403 because the owner has not given this pairing the scope it needs."""
 
 
 def _id(prefix: str = "") -> str:
@@ -1025,12 +1032,12 @@ class PinnedTransport:
                     retry_after = float(response.getheader("Retry-After", ""))
                 except (TypeError, ValueError):
                     pass
-                raise ClientError(
-                    _bounded(value.get("message") or value.get("error") or "host rejected the request"),
-                    unknown=False,
-                    status=response.status,
-                    retry_after=retry_after,
-                )
+                message = _bounded(value.get("message") or value.get("error") or "host rejected the request")
+                # The owner can take a scope away after pairing. Other 403s (another client's preview,
+                # a pairing request) keep the host's own words, which are already plain.
+                if method == "POST" and response.status == 403 and value.get("error") == "forbidden" and message == HOST_SCOPE_REFUSAL:
+                    raise ScopeRefused(SCOPE_REFUSED, status=403, retry_after=retry_after)
+                raise ClientError(message, unknown=False, status=response.status, retry_after=retry_after)
             if value.get("protocol_version") != PROTOCOL_VERSION:
                 raise ClientError("host protocol version is unsupported")
             if path == "/v1/drm":
@@ -1564,6 +1571,18 @@ class ClientCore:
         def transport() -> PinnedTransport:
             return PinnedTransport(state["endpoint"], state["certificate_fingerprint"], state["token"], timeout=timeout)
 
+        def post(path: str, body: dict[str, Any]) -> dict[str, Any]:
+            try:
+                return transport().request("POST", path, body)
+            except ScopeRefused:
+                # The owner changed this pairing after the last status read. Learn the new scopes now so
+                # the next command and the panel are judged by them; the refusal is still the answer.
+                try:
+                    self._status(transport)
+                except ClientError:
+                    pass
+                raise
+
         if action == "status":
             return self._status(transport)
         if action == "outputs":
@@ -1597,7 +1616,7 @@ class ClientCore:
                 "generation": generation,
                 "visible": True,
             }
-            response = transport().request("POST", "/v1/display/save-current", body)
+            response = post("/v1/display/save-current", body)
             self._remember_operation(state, response, kind=action, request_id=request_id)
             return response
         if action in {"display-order-save", "display-order-restart"}:
@@ -1610,7 +1629,7 @@ class ClientCore:
                 "generation": generation,
                 "restart": action == "display-order-restart",
             }
-            response = transport().request("POST", "/v1/display/order", body)
+            response = post("/v1/display/order", body)
             self._remember_operation(
                 state,
                 response,
@@ -1622,7 +1641,7 @@ class ClientCore:
             return response
         if action == "display-order-reset":
             request_id = _new_request_id(arguments.get("request_id"))
-            response = transport().request("POST", "/v1/display/order/automatic", {"request_id": request_id})
+            response = post("/v1/display/order/automatic", {"request_id": request_id})
             self._remember_operation(state, response, kind=action, request_id=request_id)
             return response
         routes = {
@@ -1635,14 +1654,14 @@ class ClientCore:
         }
         if action not in routes:
             raise ClientError("client action is unsupported")
-        method, path = routes[action]
+        path = routes[action][1]
         body = dict(arguments)
         # Helper-only controls never reach the host body.
         body.pop("timeout", None)
         if action != "power":
             body.pop("action", None)
         body["request_id"] = _new_request_id(body.get("request_id"))
-        response = transport().request(method, path, body)
+        response = post(path, body)
         self._remember_operation(state, response, kind=action, request_id=body["request_id"])
         return response
 

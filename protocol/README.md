@@ -15,13 +15,15 @@ report; `fixtures/contract/status/`, the captured `GET /v1/status` exchanges,
 including `view-only-credential.json` and `scopes-changed-by-owner.json`;
 `fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges;
 `fixtures/contract/operations/list-*.json`, the captured `GET /v1/operations`
-list exchanges; and `fixtures/contract/display-outputs/available.json`,
+list exchanges; `fixtures/contract/display-outputs/available.json`,
 `bridge-unavailable.json` and `with-active-preview.json`, the three captured
-`GET /v1/display/outputs` exchanges that vector reads. Not vendored:
-`fixtures/pairing-payload.json`, the other exchanges under
-`fixtures/contract/operations/` and `fixtures/contract/display-outputs/`, and the
-rest of `fixtures/contract/` with its `index.json`. `fixtures/display-order-*.json`
-are Omarchy-local.
+`GET /v1/display/outputs` exchanges that vector reads; and
+`fixtures/contract/power/forbidden-after-owner-removed-scope.json`, the one
+captured `POST /v1/power` exchange the tests use, the refusal after the owner
+removed a scope. Not vendored: `fixtures/pairing-payload.json`, the other
+exchanges under `fixtures/contract/operations/`, `fixtures/contract/display-outputs/`
+and `fixtures/contract/power/`, and the rest of `fixtures/contract/` with its
+`index.json`. `fixtures/display-order-*.json` are Omarchy-local.
 
 The contract deliberately exposes only enumerated operations. It never carries
 raw Steam payloads, arbitrary methods, PIDs, service names, paths, commands,

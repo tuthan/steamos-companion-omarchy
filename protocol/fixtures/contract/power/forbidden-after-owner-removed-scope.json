@@ -1,0 +1,22 @@
+{
+  "case": "power/forbidden-after-owner-removed-scope",
+  "description": "Paired with power.control; the owner removed it, and the next request is refused.",
+  "request": {
+    "method": "POST",
+    "path": "/v1/power",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": {
+      "request_id": "power-1",
+      "action": "suspend"
+    }
+  },
+  "response": {
+    "status": 403,
+    "body": {
+      "error": "forbidden",
+      "message": "credential does not have the required scope"
+    }
+  }
+}

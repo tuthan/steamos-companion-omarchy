@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import http.client
 import io
 import json
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,7 +66,9 @@ class FakeConnection:
         self.sock.getpeercert.return_value = b"certificate"
         self.routes = {path: list(answer) if isinstance(answer, list) else [answer] for path, answer in routes.items()}
         self.requests: list[tuple[str, str, Any]] = []
+        self.headers: list[dict[str, str]] = []
         self._pending = ("", "")
+        self._headers: dict[str, str] = {}
 
     def connect(self) -> None:
         return None
@@ -72,11 +76,13 @@ class FakeConnection:
     def putrequest(self, method: str, path: str, **_kwargs: Any) -> None:
         self._pending = (method, path)
 
-    def putheader(self, *_args: Any) -> None:
-        return None
+    def putheader(self, key: str, value: str) -> None:
+        self._headers[key] = value
 
     def endheaders(self, body: Any = None, **_kwargs: Any) -> None:
         self.requests.append((*self._pending, None if body is None else json.loads(body)))
+        self.headers.append(self._headers)
+        self._headers = {}
 
     def getresponse(self) -> FakeResponse:
         answers = self.routes[self._pending[1]]
@@ -633,6 +639,145 @@ class CliGateTests(unittest.TestCase):
         code, out, err, connection = self.run_cli(paired_core(self.directory, FULL), routes(), "--json", "power", "suspend", "--yes", "--acknowledged")
         self.assertEqual((2, [("POST", "/v1/power")]), (code, connection.paths()), "an accepted operation exits 2, as before")
         self.assertIn("Suspend the exact paired SteamOS host?", err)
+
+
+FORBIDDEN = fixture("power", "forbidden-after-owner-removed-scope")
+FORBIDDEN_ANSWER = (FORBIDDEN["response"]["status"], FORBIDDEN["response"]["body"])
+NOT_ALLOWED_ACTION = "The host owner has not allowed this action for this pairing."
+REMOVAL_WORDS = r"(?i)revok|remov|forgot|forgiv|unpair|no longer paired|deleted|expired"
+
+
+class ForbiddenTests(unittest.TestCase):
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+        self.directory = self._directory.name
+        self.core = paired_core(self.directory, FULL)
+        state = self.core.store.load()
+        state["token"] = FORBIDDEN["request"]["headers"]["Authorization"].removeprefix("Bearer ")
+        self.core.store.save(state)
+
+    def table(self, answer: Any = FORBIDDEN_ANSWER, status: Any = None) -> dict[str, Any]:
+        return routes(status_body("scopes-changed-by-owner") if status is None else status, **{path: answer for _n, _a, path, _s in POSTS})
+
+    def power(self, table: dict[str, Any]):
+        with serving(table) as connection, self.assertRaises(client_core.ClientError) as raised:
+            self.core.request("power", {"action": "suspend", "request_id": "power-1"})
+        return raised.exception, connection
+
+    def test_the_fixture_exchange_is_what_the_client_sends_and_how_it_answers(self):
+        error, connection = self.power(self.table())
+        sent = FORBIDDEN["request"]
+        self.assertEqual((sent["method"], sent["path"], sent["body"]), connection.requests[0])
+        self.assertEqual(sent["headers"]["Authorization"], connection.headers[0]["Authorization"])
+        self.assertIsInstance(error, client_core.ScopeRefused)
+        self.assertEqual(NOT_ALLOWED_ACTION, str(error))
+        self.assertEqual((403, False, None), (error.status, error.unknown, error.retry_after))
+        self.assertEqual(FORBIDDEN["response"]["body"]["error"], "forbidden")
+        self.assertEqual(client_core.HOST_SCOPE_REFUSAL, FORBIDDEN["response"]["body"]["message"])
+
+    def test_the_refusal_triggers_a_status_read_that_learns_the_new_scopes(self):
+        _error, connection = self.power(self.table())
+        self.assertEqual([("POST", "/v1/power"), ("GET", "/v1/status")], connection.paths())
+        self.assertEqual(["status.read", "display.control"], self.core.store.load()["scopes"])
+        self.assertEqual(["status.read", "display.control"], self.core.inspect()["scopes"])
+
+    def test_every_action_that_changes_the_host_maps_the_refusal_the_same_way(self):
+        for action, arguments, path, label in POSTS:
+            if label is None:
+                continue
+            with self.subTest(action):
+                core = paired_core(self.directory, FULL)
+                with serving(self.table()) as connection, self.assertRaises(client_core.ScopeRefused) as raised:
+                    core.request(action, copy.deepcopy(arguments))
+                self.assertEqual(NOT_ALLOWED_ACTION, str(raised.exception))
+                self.assertEqual([("POST", path), ("GET", "/v1/status")], connection.paths())
+                self.assertEqual(["status.read", "display.control"], core.store.load()["scopes"])
+
+    def test_the_refusal_removes_nothing_and_does_not_mark_the_pairing_invalid(self):
+        before = self.core.store.load()
+        self.power(self.table())
+        after = self.core.store.load()
+        self.assertEqual({**before, "scopes": ["status.read", "display.control"], "wake_mac": "001122334455"}, after)
+        self.assertEqual(sorted(path.name for path in Path(self.directory).iterdir()), ["client.json"])
+        self.assertTrue(self.core.inspect()["paired"])
+        self.assertIsNone(self.core.pending.load())
+
+    def test_a_status_read_that_fails_after_the_refusal_does_not_replace_the_answer(self):
+        for answer in ((200, OSError("connection refused")), (500, {"error": "boom", "message": "boom"}), (200, b"garbage")):
+            with self.subTest(answer=answer[1]):
+                core = paired_core(self.directory, FULL)
+                with serving({**self.table(), "/v1/status": answer}), self.assertRaises(client_core.ScopeRefused):
+                    core.request("power", {"action": "suspend", "request_id": "power-1"})
+                self.assertEqual(FULL, core.store.load()["scopes"])
+
+    def test_through_the_cli_it_is_a_plain_message_and_a_failure_exit(self):
+        out = io.StringIO()
+        with serving(self.table()), mock.patch.object(cli, "ClientCore", lambda: self.core), contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            code = cli.main(["--json", "power", "suspend", "--yes", "--acknowledged"])
+        self.assertEqual(1, code)
+        self.assertEqual({"ok": False, "error": NOT_ALLOWED_ACTION, "unknown": False, "status": 403}, json.loads(out.getvalue()))
+
+    def test_through_the_helper_the_panel_gets_the_message_and_the_status(self):
+        with serving(self.table()):
+            with self.assertRaises(client_core.ClientError) as raised:
+                self.core.run({"action": "suspend"})
+        self.assertEqual((NOT_ALLOWED_ACTION, 403), (str(raised.exception), raised.exception.status))
+
+    def test_other_403s_keep_the_hosts_words_and_do_not_refresh(self):
+        owner = (403, {"error": "forbidden", "message": "only the preview owner can confirm it"})
+        error, connection = self.power(self.table(owner))
+        self.assertNotIsInstance(error, client_core.ScopeRefused)
+        self.assertEqual(("only the preview owner can confirm it", 403), (str(error), error.status))
+        self.assertEqual([("POST", "/v1/power")], connection.paths())
+        self.assertEqual(FULL, self.core.store.load()["scopes"])
+        for answer in (
+            (403, {"error": "forbidden", "message": "Credential does not have the required scope"}),
+            (403, {"error": "forbidden", "message": "credential does not have the required scope for power"}),
+            (403, {"error": "unauthorized", "message": client_core.HOST_SCOPE_REFUSAL}),
+            (403, {"message": client_core.HOST_SCOPE_REFUSAL}),
+            (403, {"error": "forbidden"}),
+        ):
+            with self.subTest(answer=answer[1]):
+                error, connection = self.power(self.table(answer))
+                self.assertNotIsInstance(error, client_core.ScopeRefused)
+                self.assertEqual([("POST", "/v1/power")], connection.paths())
+
+    def test_only_a_change_is_mapped_a_read_keeps_the_hosts_words(self):
+        with serving({"/v1/status": FORBIDDEN_ANSWER}), self.assertRaises(client_core.ClientError) as raised:
+            client_core.PinnedTransport("https://steam-host.example:18443", PIN, "token").request("GET", "/v1/status")
+        self.assertNotIsInstance(raised.exception, client_core.ScopeRefused)
+        self.assertEqual((client_core.HOST_SCOPE_REFUSAL, 403), (str(raised.exception), raised.exception.status))
+
+    def test_other_refusals_are_unchanged(self):
+        for status, body, words in ((401, {"error": "unauthorized", "message": "unauthorized"}, "unauthorized"), (429, {"error": "rate_limited", "message": "slow down"}, "slow down"), (503, {"error": "bridge_unavailable", "message": "bridge down"}, "bridge down")):
+            with self.subTest(status=status):
+                error, connection = self.power(self.table((status, body)))
+                self.assertEqual((words, status), (str(error), error.status))
+                self.assertEqual([("POST", "/v1/power")], connection.paths())
+
+    def test_a_host_that_is_off_locked_or_slow_never_reads_as_a_removed_pairing(self):
+        failures = {
+            "refused": (200, OSError(111, "Connection refused")),
+            "no route": (200, OSError(113, "No route to host")),
+            "timeout": (200, TimeoutError("timed out")),
+            "tls": (200, ssl.SSLError("handshake failure")),
+            "dropped": (200, http.client.RemoteDisconnected("closed")),
+            "locked": (503, {"error": "host_locked", "message": "remote access is locked"}),
+            "pairing locked": (409, {"error": "host_locked", "message": "remote access is locked"}),
+        }
+        before = self.core.store.path.read_bytes()
+        for label, answer in failures.items():
+            for action, arguments in (("status", {}), ("power", {"action": "suspend"}), ("restore", {"source": "verified"}), ("outputs", {})):
+                with self.subTest(failure=label, action=action):
+                    table = {path: answer for path in ("/v1/status", "/v1/power", "/v1/display/restore", "/v1/display/outputs")}
+                    with serving(table), self.assertRaises(client_core.ClientError) as raised:
+                        self.core.request(action, arguments)
+                    self.assertNotRegex(str(raised.exception), REMOVAL_WORDS)
+                    self.assertNotIsInstance(raised.exception, client_core.ScopeRefused)
+                    self.assertNotIn("allowed", str(raised.exception))
+        self.assertEqual(before, self.core.store.path.read_bytes(), "the pairing is exactly as it was")
+        self.assertTrue(self.core.inspect()["paired"])
 
 
 if __name__ == "__main__":
