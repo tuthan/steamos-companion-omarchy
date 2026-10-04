@@ -230,6 +230,24 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   rebuild, each in the one function that reads that route. `inspect` stays a
   local debugging tool and says so in the README; only `diagnostics` is meant
   for an issue.
+- What the owner of the host allows is the host's word, not the client's. The
+  optional `credential.scopes` of a status reply (`client/client_core.py`,
+  `credential_scopes`) keeps only the three grantable scopes, once each, in the
+  host's order; a missing block or one that is not an object holding a list means
+  the host did not say and changes nothing, while an empty list is a real answer.
+  Every successful status read replaces the saved scopes, so a downgrade is as
+  visible as an upgrade, and the panel adopts the same list from the poll. Power
+  and Sunshine recovery need `power.control`; display preview, keep, restore,
+  save current and the output order need `display.control`. The gate is one
+  function (`require_scope`) shared by the helper and the CLI, and the panel
+  reads one pair (`powerAllowed`, `displayAllowed`) for every control and every
+  action, with the reason beside a disabled control. A refusal, or a 403 for a
+  missing scope, is a plain message that removes nothing and marks nothing
+  invalid; it only triggers a status read. A refused or timed-out connection is
+  the same as a host that is off, and no wording says the pairing was removed
+  because of it. The words are `access_view` in Python and the `access` block in
+  `Panel.qml`; `tests/test_access.py` and `tests/test_panel_access.py` prove both
+  against Decky's own `accessRole`, `accessSummary` and `accessNote`.
 - Multiple monitors may instantiate the widget, but the server-side
   `request_id` and host mutation lane prevent duplicate remote mutations.
 

@@ -74,6 +74,19 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
    completed entry does not by itself show that the picture is visible. A host
    that predates the route, or any failure, shows "The host journal is not
    available from this device." and changes nothing else.
+8. **Settings → Connection details → Access on this host** says what the owner of
+   the host allows this pairing: **Full access**, **View only**, **No access** or
+   **Custom**, then Status, Power and Display as allowed (worded as on the Deck).
+   The owner can approve a pairing as view only and change it later on the host,
+   and the next status read brings the change here. Power actions and Sunshine
+   recovery need Power, and display preview, keep, restore, save current and the
+   output order need Display. A control the pairing may not use is disabled with
+   the reason beside it, and status, the display list and the journal stay
+   available. If the owner removes a scope after you start, the host's refusal is
+   shown as "The host owner has not allowed this action for this pairing." and
+   nothing is forgotten. If the owner locks remote access on the host, the panel
+   sees a refused or timed-out connection, the same as for a host that is off;
+   the pairing is kept and works again after the owner unlocks it.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled
@@ -132,10 +145,22 @@ ever feed a warning.
 
 `inspect` output is not for sharing: it prints the host endpoint, host and client IDs and the wake MAC, so use `diagnostics` for anything you paste into an issue.
 
+`status` and `diagnostics` also print an `access` entry beside `data` (with
+`--plain`, as the first lines) saying what the owner of the host allows this
+pairing, for example `Access on this host: View only · Status`, followed, when
+the access is not full, by "The owner of the host chose this and can change it
+there." It follows what the host reported, or the scopes saved at pairing when
+the host does not report any. `power`, `sunshine recover` and the display
+commands that change the host refuse a pairing without Power or Display before
+anything is sent, and before they ask you to type YES, with "The host owner has
+not allowed Power for this pairing." (or Display). A refusal that has to check
+first costs one status read, which also saves what the host says now; the scopes
+the host reports replace the saved ones on every status read.
+
 `diagnostics` prints a redacted report of the paired host. It reads status, the
 display inventory, the link facts and the operation journal once each, with the
 same pinned transport and no retry, timer or write (unlike a status poll it does
-not refresh the saved wake target), and rebuilds only named facts from those
+not refresh the saved wake target or scopes), and rebuilds only named facts from those
 replies by the shared "Diagnostic report" rules in `protocol/README.md`. No MAC,
 certificate pin, host or boot ID, address, token, EDID or serial, and no
 operation, request, preview or profile ID is copied. Free text (display names,
@@ -146,7 +171,8 @@ leaves that section `null`, which is not the same as an empty one, and the exit
 code stays 0. The output is `{"format": "steamos-companion-omarchy-diagnostics-v1",
 "generated_at", "client", "local", "report"}` inside the usual `ok`/`data`
 object. `client` is the app and its manifest version; `local` is only `paired`,
-`scopes`, `wake_configured` and `pending_operation_present`, with no endpoint,
+`scopes` (what the host just reported, else what was saved), `wake_configured`
+and `pending_operation_present`, with no endpoint,
 identity, pin, MAC, interface or token. Unpaired, it opens no connection and
 every report section is `null`. The panel has no export surface: nothing is
 sent anywhere, so read the output before you post it.
