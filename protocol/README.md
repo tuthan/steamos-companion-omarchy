@@ -5,12 +5,15 @@ under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source 
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
-Pinned to Decky `main` at `10dc422` (six commits after `v0.5.18`). Vendored:
-`schema.json`; this file, where everything after this note is Decky's text
-unchanged, including its "DRM link facts" section; the flat `fixtures/*.json`
-that the tests load; `fixtures/contract/status/`, the captured `GET /v1/status`
-exchanges; and `fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges.
-Not vendored: `fixtures/pairing-payload.json` and the rest of
+Pinned to Decky `main` at `f6aa384` (seven commits after `v0.5.18`). Vendored:
+`schema.json`; `operation-vocabulary.json`; this file, where everything after
+this note is Decky's text unchanged, including its "DRM link facts" and
+"Operation journal" sections; the flat `fixtures/*.json` that the tests load;
+`fixtures/contract/status/`, the captured `GET /v1/status` exchanges;
+`fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges; and
+`fixtures/contract/operations/list-*.json`, the captured `GET /v1/operations`
+list exchanges. Not vendored: `fixtures/pairing-payload.json`, the other
+exchanges under `fixtures/contract/operations/`, and the rest of
 `fixtures/contract/` with its `index.json`. `fixtures/display-order-*.json` are
 Omarchy-local.
 
@@ -226,3 +229,45 @@ and a contract test asserts the key allowlist.
   because Steam exposes scaled modes the connector list does not.
 - **Fetch cadence.** Once per display interaction (and when the output topology
   changes), never with each status poll.
+
+## Operation journal
+
+`GET /v1/operations` (any valid credential; no body, no query string) returns
+`{protocol_version, operations}`, newest first by `updated_at` (ties by `id`,
+descending), at most 256 records. A credential sees its own operations plus the
+Deck's own display records: kinds `display.selection.*` and `display.preference`
+written by Decky itself (owner `decky-local`; `host` is accepted for records an
+older build wrote). Another credential's records, and host-internal records of
+any other kind (`display.session-restart`, `sunshine.restart`), never appear.
+`GET /v1/operations/{id}` stays narrower: it serves only the caller's own
+records, so a journal row for a Deck-owned record has no by-id read.
+
+Records are the `operation` definition in `schema.json`. `target` is the host's
+account of what was requested (output and mode ids, connector names, a profile
+id, a power action) and `outcome`, `restore_state`, `restored` and `resolved_by`
+are what the host recorded. None of it is proof of a visible picture: a
+`succeeded` record means the host finished what it set out to do, and only the
+outcomes whose code contains `visible` carry the owner's confirmation.
+
+`operation-vocabulary.json` is the shared wording for every client: a label for
+each `state`, `kind`, `outcome` and `restore_state` the host can record. A host
+test fails when the host starts recording a code the vocabulary lacks, and a
+client test fails when its embedded wording drifts from the file. A client shows
+an unknown code as sanitised text rather than hiding or guessing at it.
+
+Clients present the journal as diagnostics, not as status:
+
+- Read on entry to the diagnostics view and on an explicit refresh (spaced at
+  least five seconds apart). Never with the status poll, never on a timer.
+- Optional and advisory: a host that predates the route, a rejected request or
+  a malformed reply shows "not available", never an error, and never changes
+  connection state.
+- Rebuild each record from an allowlist and bound what is shown. Never persist
+  or export the records.
+- Show the list with a standing note that a completed entry does not by itself
+  show the picture is visible.
+
+The `operations/list-*` fixtures are generated like the rest: `list-mixed`
+holds the caller's records, two Deck-owned display records and one record each
+that must not appear (another client's power operation and a host
+session-restart).

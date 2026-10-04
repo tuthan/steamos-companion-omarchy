@@ -1,0 +1,19 @@
+{
+  "case": "operations/list-empty",
+  "description": "A paired client on a host that has recorded nothing for it.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/operations",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "operations": []
+    }
+  }
+}

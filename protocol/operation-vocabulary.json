@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "description": "Neutral wording for operation journal records, shared by every client. Each label states what the host recorded and nothing more: a Completed state is not a visible picture, and only outcomes whose code says the owner confirmed visibility use the word visible. A client shows the raw code (sanitised, truncated) for any kind, outcome or state it does not know.",
+  "states": {
+    "accepted": "Requested",
+    "dispatched": "In progress",
+    "observed_return": "Returned, not confirmed",
+    "succeeded": "Completed",
+    "failed": "Failed",
+    "unknown": "Result not confirmed"
+  },
+  "kinds": {
+    "power.suspend": "Suspend",
+    "power.restart": "Restart",
+    "power.shutdown": "Shut down",
+    "display.preview": "Display mode preview",
+    "display.confirm": "Display preview confirmation",
+    "display.restore": "Display restore",
+    "display.save-current": "Save current display mode",
+    "display.order": "Gaming Mode display order",
+    "display.order.reset": "Reset display order",
+    "display.preference": "Gaming Mode display preference",
+    "display.selection.preview": "Screen selection preview",
+    "display.selection.revert": "Screen selection revert",
+    "display.session-restart": "Gaming Mode restart",
+    "sunshine.restart": "Start or restart Sunshine",
+    "pair.revoke-self": "Revoke this client"
+  },
+  "outcomes": {
+    "method_returned": "Steam returned from the call; the physical result is not confirmed",
+    "mode_request_returned": "Mode request returned; waiting for confirmation",
+    "target_active_read_back": "Selected screen read back as active; waiting for confirmation",
+    "target_active_reconciled_after_reload": "Selected screen read back as active after a plugin reload",
+    "visible_picture_confirmed": "Owner confirmed the picture was visible",
+    "active_screen_visible_and_confirmed": "Owner confirmed the selected screen was visible",
+    "current_mode_visible_and_read_back": "Current mode read back; owner confirmed the picture was visible",
+    "restored_and_read_back": "Previous mode restored and read back",
+    "baseline_screen_restored": "Previous screen restored",
+    "gamescope_output_configured": "Gamescope output saved; applies after Gaming Mode restarts",
+    "gamescope_output_configured_and_restart_requested": "Gamescope output saved; Gaming Mode restart requested",
+    "gamescope_output_configured_restart_failed": "Gamescope output saved; Gaming Mode restart failed",
+    "gamescope_output_cleared": "Gamescope output preference cleared",
+    "gamescope_session_restart_requested": "Gaming Mode restart requested",
+    "already_running": "Sunshine was already running",
+    "running": "Sunshine reported running",
+    "revoked": "This client's access was revoked"
+  },
+  "restore_states": {
+    "dispatched": "Restore in progress",
+    "succeeded": "Previous screen restored",
+    "failed": "Previous screen not restored",
+    "unknown": "Restore result not confirmed"
+  }
+}

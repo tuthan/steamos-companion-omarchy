@@ -259,7 +259,10 @@
         "outcome": {"type": ["string", "null"], "maxLength": 128},
         "reason": {"type": ["string", "null"], "maxLength": 256},
         "preview_id": {"type": ["string", "null"], "maxLength": 128},
-        "restore_state": {"type": ["string", "null"], "maxLength": 64}
+        "restore_state": {"type": ["string", "null"], "maxLength": 64},
+        "restored": {"type": ["boolean", "null"]},
+        "resolved_by": {"type": ["string", "null"], "maxLength": 128},
+        "target": {"type": ["object", "null"]}
       },
       "additionalProperties": true
     }

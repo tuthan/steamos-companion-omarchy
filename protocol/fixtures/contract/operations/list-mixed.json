@@ -1,0 +1,103 @@
+{
+  "case": "operations/list-mixed",
+  "description": "Newest first: the caller's preview, the Deck's own display records (decky-local owner), the caller's power and save-current records. Another client's power record and the host's session-restart record never appear.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/operations",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "operations": [
+        {
+          "id": "op-fixture0007xxxxxxxxxxxxx",
+          "request_id": "preview-1",
+          "state": "observed_return",
+          "kind": "display.preview",
+          "created_at": "2026-09-13T12:00:24.250000Z",
+          "updated_at": "2026-09-13T12:00:24.250000Z",
+          "outcome": "mode_request_returned",
+          "reason": "Preview is waiting for visible-picture confirmation or host timeout",
+          "preview_id": "op-fixture0007xxxxxxxxxxxxx",
+          "target": {
+            "output_id": "1",
+            "mode_id": "2",
+            "generation": 4
+          }
+        },
+        {
+          "id": "op-fixture0005xxxxxxxxxxxxx",
+          "request_id": "internal-fixture0002xxxxxxxxxxxxx",
+          "state": "succeeded",
+          "kind": "display.preference",
+          "created_at": "2026-09-13T12:00:21.250000Z",
+          "updated_at": "2026-09-13T12:00:21.250000Z",
+          "outcome": "gamescope_output_configured",
+          "reason": "Gamescope output preference saved; leave and re-enter Gaming Mode to apply it.",
+          "target": {
+            "output_keys": [
+              "drm:card0:HDMI-A-1",
+              "drm:card0:DP-1"
+            ],
+            "connectors": [
+              "HDMI-A-1",
+              "DP-1"
+            ],
+            "generation": 4,
+            "restart": false
+          }
+        },
+        {
+          "id": "op-fixture0004xxxxxxxxxxxxx",
+          "request_id": "internal-fixture0001xxxxxxxxxxxxx",
+          "state": "failed",
+          "kind": "display.selection.preview",
+          "created_at": "2026-09-13T12:00:15.250000Z",
+          "updated_at": "2026-09-13T12:00:19.250000Z",
+          "outcome": null,
+          "reason": "host preview deadline expired; baseline screen restored",
+          "preview_id": "op-fixture0004xxxxxxxxxxxxx",
+          "restore_state": "succeeded",
+          "restored": true,
+          "resolved_by": "active_output_and_mode",
+          "target": {
+            "target_output_key": "drm:card0:HDMI-A-1",
+            "baseline_output_key": "drm:card0:DP-1",
+            "generation": 4
+          }
+        },
+        {
+          "id": "op-fixture0002xxxxxxxxxxxxx",
+          "request_id": "power-1",
+          "state": "observed_return",
+          "kind": "power.suspend",
+          "created_at": "2026-09-13T12:00:05.250000Z",
+          "updated_at": "2026-09-13T12:00:05.250000Z",
+          "outcome": "method_returned",
+          "reason": "Steam returned; physical suspend transition is not confirmed by this response",
+          "target": {
+            "action": "suspend"
+          }
+        },
+        {
+          "id": "op-fixture0001xxxxxxxxxxxxx",
+          "request_id": "save-current-1",
+          "state": "succeeded",
+          "kind": "display.save-current",
+          "created_at": "2026-09-13T12:00:00.250000Z",
+          "updated_at": "2026-09-13T12:00:00.250000Z",
+          "outcome": "current_mode_visible_and_read_back",
+          "reason": null,
+          "target": {
+            "profile_id": "profile-fixture0001xxxxxxxxxxxxx"
+          }
+        }
+      ]
+    }
+  }
+}

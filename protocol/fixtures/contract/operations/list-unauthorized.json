@@ -1,0 +1,17 @@
+{
+  "case": "operations/list-unauthorized",
+  "description": "No Authorization header.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/operations",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 401,
+    "body": {
+      "error": "unauthorized",
+      "message": "authentication required"
+    }
+  }
+}
