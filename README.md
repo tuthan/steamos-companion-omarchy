@@ -58,6 +58,12 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
    temperature source, Sunshine, and plugin and protocol versions. It reads the
    status the open panel already polls. A host on an older Decky plugin does not
    report it, and the panel says to update that plugin.
+6. On **Display**, selecting a resolution the display link never listed shows an
+   advisory above Preview. It only warns: the list comes from the connector
+   facts the host reads from the kernel, has no refresh rates, and a resolution
+   it omits may still work. **Settings → Connection details → Link facts** names
+   the connector behind the display. An older host gets no advisory, and the
+   group says the facts are not available.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled
@@ -79,6 +85,7 @@ second credential store. Global output flags go before the command.
 ./steamos-companion-ctl --json inspect
 ./steamos-companion-ctl --json status
 ./steamos-companion-ctl --json outputs
+./steamos-companion-ctl --json display link-facts
 ./steamos-companion-ctl --json display save-current --output-id OUTPUT_ID --generation GENERATION
 ./steamos-companion-ctl --json journal get OPERATION_ID
 ```
@@ -94,6 +101,11 @@ output. Errors are emitted as a JSON object by default.
 implement the pinned `v0.5.16` protocol can still serve `journal get`, but need
 the matching host update before the list command is available. A 404 means the
 host build does not expose the list route; it is not acceptance evidence.
+
+`display link-facts` reads the advisory DRM connector facts (resolutions only).
+A host without the route, or one that answers badly, is reported as
+`"drm": null` with an `unavailable` reason and exit 0, because the facts only
+ever feed a warning.
 
 The wrapper is included in the plugin checkout but is not installed as a
 system-wide command by the plugin manager.

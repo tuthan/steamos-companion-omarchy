@@ -117,6 +117,7 @@ def _parser() -> argparse.ArgumentParser:
     restore = display_commands.add_parser("restore", help="restore the saved recovery mode")
     restore.add_argument("--source", choices=("verified", "preview"), default="verified")
     display_commands.add_parser("order", help="read the Gaming Mode output order")
+    display_commands.add_parser("link-facts", help="read the advisory DRM link facts (resolutions only; older hosts report none)")
     order_save = display_commands.add_parser("order-save", help="save host-issued output keys")
     order_save.add_argument("--output-keys", required=True, help="comma-separated host-issued keys")
     order_save.add_argument("--generation", required=True, type=int)
@@ -232,6 +233,8 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
             return core.run({"action": "restore", "source": args.source})
         if action == "order":
             return core.run({"action": "display-order"})
+        if action == "link-facts":
+            return core.run({"action": "link-facts"})
         if action == "order-save":
             keys = [item.strip() for item in args.output_keys.split(",") if item.strip()]
             if args.restart:

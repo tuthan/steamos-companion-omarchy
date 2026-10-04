@@ -186,6 +186,21 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   presentation functions are plain JavaScript between the `self-check` markers
   in `Panel.qml` so `tests/test_health.py` can run them against the pinned
   fixtures.
+- Link facts are advisory. `GET /v1/drm` returns the connector facts the kernel
+  publishes (resolutions only, no refresh rates) and the host joins each
+  connector to a display-bridge output, so the client never matches by connector
+  name. The panel warns, and never blocks, only for the selected non-current
+  mode on a joined, connected, external connector whose non-empty list lacks
+  that resolution. Every other case, an older host's 404 or any failure
+  included, shows no warning and never touches the status, connection, or action
+  lines; the Link facts group then says why it has nothing to show. The
+  transport drops an oversize or malformed block instead of failing the read.
+  The read is one request on the poll lane when Display opens or the output
+  topology changes, never with the status poll or a timer, and facts read under
+  another topology or host are not used (PD11). The warning carries a word and a
+  glyph, and its text follows the Decky card; the functions are plain JavaScript
+  between the `link-facts` markers in `Panel.qml` so `tests/test_linkfacts.py`
+  can run them against the pinned fixtures.
 - Multiple monitors may instantiate the widget, but the server-side
   `request_id` and host mutation lane prevent duplicate remote mutations.
 

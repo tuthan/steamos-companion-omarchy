@@ -52,12 +52,19 @@ SAS_SCRYPT_P = 1
 SAS_MAXMEM = 64 * 1024 * 1024
 NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{20,32}$")
 INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
-PATH_RE = re.compile(r"^/v1/(?:pair/request|status|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|display/save-current|power|sunshine/restart|pair/revoke-self|operations|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
+PATH_RE = re.compile(r"^/v1/(?:pair/request|status|drm|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|display/save-current|power|sunshine/restart|pair/revoke-self|operations|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 DISPLAY_OUTPUT_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:|/-]{0,127}$")
 PIN_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 MAC_RE = re.compile(r"^[0-9a-f]{12}$")
 DISPLAY_ORDER_MAX_OUTPUTS = 16
+# Advisory DRM link facts (`GET /v1/drm`), bounded as `$defs/drm` in the schema.
+LINK_FACTS_MAX_CONNECTORS = 16
+LINK_FACTS_MAX_RESOLUTIONS = 256
+LINK_CONNECTOR_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
+LINK_GPU_RE = re.compile(r"^drm:card[0-9]{1,4}$")
+LINK_VENDOR_RE = re.compile(r"^[A-Z]{3}$")
+LINK_RESOLUTION_RE = re.compile(r"^[1-9][0-9]{0,4}x[1-9][0-9]{0,4}$")
 OPERATION_STATES = frozenset({"accepted", "dispatched", "observed_return", "succeeded", "failed", "unknown"})
 
 
@@ -666,6 +673,94 @@ def _optional_self_check(value: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
+def _link_text(value: Any, limit: int, *, minimum: int = 1) -> bool:
+    return isinstance(value, str) and minimum <= len(value) <= limit and value.isprintable()
+
+
+def _link_facts_connector(item: Any) -> dict[str, Any] | None:
+    """One connector, rebuilt from the allowlisted fields or refused outright."""
+    if not isinstance(item, dict):
+        return None
+    connector, gpu_id, name = item.get("connector"), item.get("gpu_id"), item.get("display_name")
+    vendor, product = item.get("monitor_vendor"), item.get("monitor_product_id")
+    resolutions, steam_output_id = item.get("resolutions"), item.get("steam_output_id")
+    if not (isinstance(connector, str) and LINK_CONNECTOR_RE.fullmatch(connector)):
+        return None
+    if not (isinstance(gpu_id, str) and LINK_GPU_RE.fullmatch(gpu_id)):
+        return None
+    if not _link_text(name, 128):
+        return None
+    if vendor is not None and not (isinstance(vendor, str) and LINK_VENDOR_RE.fullmatch(vendor)):
+        return None
+    if product is not None and not (isinstance(product, int) and not isinstance(product, bool) and 0 <= product <= 65535):
+        return None
+    if not isinstance(item.get("is_internal"), bool) or not isinstance(item.get("connected"), bool):
+        return None
+    if not isinstance(resolutions, list) or len(resolutions) > LINK_FACTS_MAX_RESOLUTIONS:
+        return None
+    if not all(isinstance(entry, str) and LINK_RESOLUTION_RE.fullmatch(entry) for entry in resolutions):
+        return None
+    if steam_output_id is not None and not _link_text(steam_output_id, 128):
+        return None
+    return {
+        "connector": connector,
+        "gpu_id": gpu_id,
+        "display_name": name,
+        "monitor_vendor": vendor,
+        "monitor_product_id": product,
+        "is_internal": item["is_internal"],
+        "connected": item["connected"],
+        "resolutions": list(resolutions),
+        "steam_output_id": steam_output_id,
+    }
+
+
+def _link_facts_block(block: Any) -> dict[str, Any] | None:
+    """Rebuild the `drm` block from the allowlisted fields, or refuse it whole.
+
+    Anything the host adds beyond the schema (an EDID dump, a serial number) is
+    not copied. One malformed connector refuses the block rather than dropping
+    that connector: the panel only warns for the single connector joined to the
+    selected output, and removing one of two connectors that claim the same
+    output would turn an ambiguity into a false match.
+    """
+    if not isinstance(block, dict) or not isinstance(block.get("available"), bool):
+        return None
+    observed_at, reason = block.get("observed_at"), block.get("reason")
+    if observed_at is not None and not _link_text(observed_at, 64):
+        return None
+    if reason is not None and not _link_text(reason, 256):
+        return None
+    raw = block.get("connectors")
+    if not isinstance(raw, list) or len(raw) > LINK_FACTS_MAX_CONNECTORS:
+        return None
+    connectors = [_link_facts_connector(item) for item in raw]
+    if any(item is None for item in connectors):
+        return None
+    return {
+        "available": block["available"],
+        "observed_at": observed_at,
+        "reason": reason,
+        "connectors": connectors,
+    }
+
+
+def _optional_link_facts(value: dict[str, Any]) -> dict[str, Any]:
+    """Keep the advisory `drm` block from ever failing its read.
+
+    The facts are optional: a block that is missing, malformed, or over its
+    bounds is dropped and the host is treated as one that has no facts. Only the
+    allowlisted fields are forwarded and nothing else in the body is. The block
+    carries its own bounds, which is why it skips the generic node budget (a
+    legitimate list of 16 connectors with 256 resolutions each would exceed it).
+    """
+    facts = _link_facts_block(value.get("drm"))
+    result: dict[str, Any] = {"protocol_version": PROTOCOL_VERSION}
+    if facts is not None:
+        result["drm"] = facts
+    return result
+
+
 class PinnedTransport:
     def __init__(self, endpoint: str, pin: str, token: str | None = None, timeout: float = 5.0):
         self.endpoint = validate_endpoint(endpoint)
@@ -752,6 +847,8 @@ class PinnedTransport:
                 )
             if value.get("protocol_version") != PROTOCOL_VERSION:
                 raise ClientError("host protocol version is unsupported")
+            if path == "/v1/drm":
+                return _optional_link_facts(value)
             if path == "/v1/status":
                 value = _optional_self_check(value)
             validate_response_limits(value)
@@ -1172,6 +1269,30 @@ class ClientCore:
         state.pop("pending_operation", None)
         self.store.save(state)
 
+    @staticmethod
+    def _link_facts(transport: Any) -> dict[str, Any]:
+        """Read the advisory DRM link facts; nothing the host answers is an error.
+
+        The facts only ever feed a warning, so a 404 from a host that predates
+        the route, a refusal, a transport failure, or a block that did not
+        survive validation all mean the same thing: no facts. The reason is a
+        fixed word for the evidence tool; host text is never passed along.
+        """
+        result: dict[str, Any] = {"protocol_version": PROTOCOL_VERSION, "drm": None}
+        try:
+            response = transport().request("GET", "/v1/drm")
+        except ClientError as exc:
+            result["unavailable"] = "not_found" if exc.status == 404 else "error"
+            return result
+        except Exception:
+            result["unavailable"] = "error"
+            return result
+        if response.get("drm") is None:
+            result["unavailable"] = "invalid"
+            return result
+        result["drm"] = response["drm"]
+        return result
+
     def request(self, action: str, arguments: dict[str, Any]) -> dict[str, Any]:
         state = self.store.load()
         timeout = self._timeout(arguments.get("timeout"))
@@ -1187,6 +1308,8 @@ class ClientCore:
             return transport().request("GET", "/v1/display/outputs")
         if action == "display-order":
             return transport().request("GET", "/v1/display/order")
+        if action == "link-facts":
+            return self._link_facts(transport)
         if action == "operations":
             return transport().request("GET", "/v1/operations")
         if action == "operation":

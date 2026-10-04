@@ -81,6 +81,19 @@ Panel {
   property bool displayOrderRefreshRequested: false
   property string displayOrderError: ""
 
+  // ---- advisory DRM link facts -------------------------------------------
+  // Read once per display interaction (Display opens, or its output topology
+  // changes), never with the status poll. They only feed a warning and a
+  // details group, so "no facts" is a normal state and never an error.
+  property var linkFactsData: null
+  property string linkFactsDataKey: ""
+  property string linkFactsRequestedKey: ""
+  property string linkFactsIdentity: ""
+  // The facts answer for the output topology they were read under. Once that
+  // has moved on the host may have renumbered its outputs, so they are unused
+  // until the next read lands.
+  readonly property var linkFacts: root.linkFactsDataKey !== "" && root.linkFactsDataKey === root.linkFactsTopology(root.outputList) ? root.linkFactsData : null
+
   // ---- helper lifecycle -------------------------------------------------
   property int pollGeneration: 0
   property var helperQueue: []
@@ -684,10 +697,12 @@ Panel {
     enqueueHelper("inspect", {}, function(result) {
       if (!result.ok) {
         root.localData = {paired: false}
+        root.syncLinkFactsIdentity()
         root.actionMessage = friendlyError(result.error)
         return
       }
       root.localData = result.data || {paired: false}
+      root.syncLinkFactsIdentity()
       root.pendingPairing = root.localData.pending_pairing || null
       if (root.pendingPairing) root.pairingCountdownSeconds = root.pendingPairing.seconds_remaining || 0
       root.endpointText = root.localData.endpoint || ""
@@ -853,6 +868,10 @@ Panel {
     root.outputsSignature = signature
     root.outputsData = data
     root.clampDisplaySelection()
+    // Only a changed inventory can change the topology the link facts answer
+    // for, so this is the one place a poll can lead to a new read, and it does
+    // so only when the topology key differs from the last read's.
+    root.requestLinkFacts()
   }
 
   function applyDisplayOrderFailure(error) {
@@ -957,8 +976,12 @@ Panel {
     root.cursorKey = ""
     root.cursorActive = false
     flick.contentY = 0
-    if (next === "display") root.refresh()
-    else if (next === "settings" && root.paired) root.refreshConnectionDetails()
+    if (next === "display") {
+      root.refresh()
+      // A new display interaction: read the link facts again for it.
+      root.linkFactsRequestedKey = ""
+      root.requestLinkFacts()
+    } else if (next === "settings" && root.paired) root.refreshConnectionDetails()
   }
 
   function viewByDelta(delta) {
@@ -1224,6 +1247,7 @@ Panel {
 
   function resetPairedState() {
     root.localData = {paired: false}
+    root.syncLinkFactsIdentity()
     root.statusData = null
     root.outputsData = null
     root.outputsSignature = ""
@@ -1497,6 +1521,171 @@ Panel {
     return {state: "ok", text: "Host protocol " + protocol + " matches this client."}
   }
   // self-check:end
+
+  // ---- advisory DRM link facts: the optional `GET /v1/drm` read -------------
+  // Pure presentation, kept in step with the Decky frontend (linkFactsFor,
+  // linkAdvisory, linkFactsLine and LINK_ADVISORY_TEXT) so both clients word
+  // the same facts the same way. The kernel list is resolutions only, so
+  // nothing here reasons about refresh rate, and it is advisory: a resolution it
+  // omits may still work, so the result is a warning and never a gate. The host
+  // joins each connector to a display-bridge output (steam_output_id); this code
+  // never matches a connector by name. Anything unexpected is simply no facts.
+  // tests/test_linkfacts.py runs this block under Node against the pinned
+  // fixtures, so keep it free of QML properties.
+  // link-facts:begin
+  function linkAdvisoryText() {
+    return "Heads up · This resolution is not in the display link's mode list. It may still work, or the display may show no signal. The preview reverts on its own unless you keep it."
+  }
+
+  function linkAdvisoryGlyph() {
+    // Word first, glyph second: the text above carries the meaning on its own.
+    return "△"
+  }
+
+  function linkFactsInteger(value) {
+    return typeof value === "number" && isFinite(value) && Math.floor(value) === value
+  }
+
+  function linkFactsText(value, limit) {
+    return typeof value === "string" ? value.slice(0, limit) : ""
+  }
+
+  // The topology a read answers for: every output's id and generation. Facts
+  // read under another topology are not used, because ids may have moved.
+  function linkFactsTopology(outputs) {
+    if (!Array.isArray(outputs) || outputs.length === 0) return ""
+    var parts = []
+    for (var index = 0; index < outputs.length; index++) {
+      var output = outputs[index]
+      parts.push(output !== null && typeof output === "object" ? [String(output.id), String(output.generation)] : null)
+    }
+    return JSON.stringify(parts)
+  }
+
+  // The helper answers {ok, data: {drm}}. Anything else, an error included, is
+  // no facts.
+  function linkFactsFromResult(result) {
+    var drm = result && result.ok === true && result.data ? result.data.drm : null
+    return drm !== null && typeof drm === "object" && !Array.isArray(drm) && Array.isArray(drm.connectors) ? drm : null
+  }
+
+  // The one connector the host joined to this output, or nothing. Zero or two
+  // claimants is ambiguity, not a match.
+  function linkFactsFor(drm, output) {
+    if (!drm || drm.available !== true || !Array.isArray(drm.connectors)) return null
+    if (!output || typeof output.id !== "string" || output.id === "") return null
+    var match = null
+    var count = 0
+    for (var index = 0; index < drm.connectors.length; index++) {
+      var item = drm.connectors[index]
+      if (item !== null && typeof item === "object" && item.steam_output_id === output.id) {
+        match = item
+        count++
+      }
+    }
+    return count === 1 ? match : null
+  }
+
+  // Warn only for a connected, external connector with a non-empty list that
+  // lacks the selected resolution. Every other case, an unknown one included,
+  // says nothing.
+  function linkAdvisory(drm, output, mode) {
+    var link = linkFactsFor(drm, output)
+    if (!link || link.connected !== true || link.is_internal !== false) return null
+    if (!Array.isArray(link.resolutions) || link.resolutions.length === 0) return null
+    if (!mode || !linkFactsInteger(mode.width) || !linkFactsInteger(mode.height)) return null
+    if (mode.width < 1 || mode.height < 1) return null
+    var wanted = mode.width + "x" + mode.height
+    for (var index = 0; index < link.resolutions.length; index++) {
+      if (link.resolutions[index] === wanted) return null
+    }
+    return linkAdvisoryText()
+  }
+
+  function linkFactsCard(link) {
+    return linkFactsText(link.gpu_id, 16).replace(/^drm:/, "")
+  }
+
+  // "HDMI-A-1 · card0 · LG TV SSCR2 · GSM model 49780": the display name only
+  // when it says more than the connector, the model only when both parts exist.
+  function linkFactsLine(link) {
+    if (!link || typeof link !== "object" || Array.isArray(link)) return ""
+    var connector = linkFactsText(link.connector, 64)
+    if (connector === "") return ""
+    var parts = [connector + " · " + linkFactsCard(link)]
+    var name = linkFactsText(link.display_name, 128)
+    if (name && name !== connector) parts.push(name)
+    var vendor = linkFactsText(link.monitor_vendor, 3)
+    if (vendor && linkFactsInteger(link.monitor_product_id)) parts.push(vendor + " model " + link.monitor_product_id)
+    return parts.join(" · ")
+  }
+
+  // The rows of the Connection details group, for the joined connector.
+  function linkFactsRows(link) {
+    if (!link || typeof link !== "object" || Array.isArray(link)) return []
+    var connector = linkFactsText(link.connector, 64)
+    if (connector === "") return []
+    var card = linkFactsCard(link)
+    var name = linkFactsText(link.display_name, 128)
+    var vendor = linkFactsText(link.monitor_vendor, 3)
+    var connected = link.connected === true
+    return [
+      {id: "connector", label: "Connector", value: connector, state: ""},
+      {id: "card", label: "GPU card", value: card || "Not reported", state: ""},
+      {id: "display", label: "Display", value: name && name !== connector ? name : "Name not reported", state: ""},
+      {id: "monitor", label: "Monitor", value: vendor && linkFactsInteger(link.monitor_product_id) ? vendor + " model " + link.monitor_product_id : "Maker and model not reported", state: ""},
+      {id: "connected", label: "Connection", value: (connected ? "Connected" : "Not connected") + (link.is_internal === true ? " · internal panel" : ""), state: connected ? "ok" : "off"}
+    ]
+  }
+
+  // What the group says when there is no joined connector to describe.
+  function linkFactsNote(drm, output) {
+    if (!output || typeof output.id !== "string" || output.id === "")
+      return "No display output is known yet."
+    if (!drm || drm.available !== true)
+      return "Link facts are not available. They are read when Display is opened, and older hosts do not report them."
+    if (!linkFactsFor(drm, output))
+      return "No connector is joined to this display, so the host cannot say which link it uses."
+    return ""
+  }
+  // link-facts:end
+
+  // One read per display interaction: when Display opens (setView) and when its
+  // output topology changes (applyOutputs). It rides the poll lane, so it never
+  // disables a control, is dropped with the panel, and is never repeated by a
+  // timer. The facts are advisory: whatever the helper answers, a failure
+  // included, only ever becomes "no facts" and touches no status or action text.
+  function requestLinkFacts() {
+    if (!root.opened || !root.paired || root.view !== "display") return
+    var key = root.linkFactsTopology(root.outputList)
+    // Without outputs there is nothing to join; applyOutputs asks again.
+    if (key === "" || key === root.linkFactsRequestedKey) return
+    root.linkFactsRequestedKey = key
+    var identity = root.linkFactsIdentity
+    enqueueHelper("link-facts", {timeout: 2.5}, function(result) {
+      // Another host was paired while this was in flight: not its facts.
+      if (identity !== root.linkFactsIdentity) return
+      root.linkFactsData = root.linkFactsFromResult(result)
+      root.linkFactsDataKey = root.linkFactsData ? key : ""
+      // The topology moved while this was in flight, and an identical request
+      // queued meanwhile was merged into it. Read again for the current one.
+      if (root.linkFactsRequestedKey !== key) {
+        root.linkFactsRequestedKey = ""
+        root.requestLinkFacts()
+      }
+    }, true)
+  }
+
+  // Facts belong to the host they came from. A different pairing or endpoint
+  // would otherwise match its outputs against another host's connectors.
+  function syncLinkFactsIdentity() {
+    var identity = root.paired ? String(root.localData.host_id || "") + "|" + String(root.localData.endpoint || "") : ""
+    if (identity === root.linkFactsIdentity) return
+    root.linkFactsIdentity = identity
+    root.linkFactsData = null
+    root.linkFactsDataKey = ""
+    root.linkFactsRequestedKey = ""
+  }
 
   function sunshineVisible() {
     // Sunshine is an optional server-owned capability. A disabled monitor is
@@ -2545,8 +2734,27 @@ Panel {
           required property int index
           readonly property bool isCurrent: !!root.currentOutput && modelData.id === root.currentOutput.current_mode_id
           readonly property bool isSelected: root.selectedModeId === modelData.id
+          // Advisory only, for the selected mode that is not the current one,
+          // and only when the host joined a connector to this output. Anything
+          // else leaves the row exactly as it was.
+          readonly property var advisoryText: isSelected && !isCurrent ? root.linkAdvisory(root.linkFacts, root.currentOutput, modelData) : null
+          readonly property var advisoryLink: advisoryText ? root.linkFactsFor(root.linkFacts, root.currentOutput) : null
           width: parent.width
           spacing: Style.space(4)
+
+          Column {
+            visible: !!advisoryText
+            width: parent.width
+            spacing: Style.space(2)
+            BodyText {
+              width: parent.width
+              text: root.linkAdvisoryGlyph() + " " + (advisoryText || "")
+            }
+            HintText {
+              width: parent.width
+              text: "Link: " + root.linkFactsLine(advisoryLink)
+            }
+          }
 
           Row {
             width: parent.width
@@ -2917,6 +3125,52 @@ Panel {
           visible: !!root.statusData && healthGroup.healthNudge.state !== "ok"
           width: parent.width
           text: healthGroup.healthNudge.text
+        }
+      }
+
+      // Link facts for the display the Display view and its saved recovery mode
+      // target. This only shows what the Display view already read, so it adds
+      // no request and no timer of its own. The host does the matching; with no
+      // joined connector the group says so instead of guessing one.
+      Column {
+        id: linkFactsGroup
+        visible: root.paired
+        width: parent.width
+        spacing: Style.space(4)
+
+        readonly property var linkRecord: root.linkFactsFor(root.linkFacts, root.currentOutput)
+        readonly property var linkRows: root.linkFactsRows(linkRecord)
+        // A fixed model keeps the delegates alive; only their text changes.
+        readonly property var linkRowIds: ["connector", "card", "display", "monitor", "connected"]
+
+        PanelSectionHeader { text: "Link facts"; width: parent.width }
+        HintText {
+          visible: linkFactsGroup.linkRows.length > 0
+          width: parent.width
+          text: "The connector the host matched to " + root.outputLabel(root.currentOutput)
+            + (root.currentSavedProfile ? ", the display your saved recovery mode targets" : "")
+            + ". Advisory: read when Display was opened."
+        }
+        HintText {
+          visible: linkFactsGroup.linkRows.length === 0
+          width: parent.width
+          text: root.linkFactsNote(root.linkFacts, root.currentOutput)
+        }
+        Repeater {
+          model: linkFactsGroup.linkRowIds
+          delegate: BodyText {
+            required property string modelData
+            readonly property var row: {
+              var rows = linkFactsGroup.linkRows
+              for (var index = 0; index < rows.length; index++) {
+                if (rows[index].id === modelData) return rows[index]
+              }
+              return null
+            }
+            visible: !!row
+            width: parent.width
+            text: row ? (row.state ? root.selfCheckGlyph(row.state) + " " : "") + row.label + ": " + row.value : ""
+          }
         }
       }
 
