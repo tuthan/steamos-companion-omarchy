@@ -479,7 +479,7 @@ class JournalRebuildTests(unittest.TestCase):
         source = (ROOT / "client" / "client_core.py").read_text()
         self.assertEqual(source.count("budget=False"), 1)
         self.assertEqual(source.count('"journal"'), 1)
-        self.assertEqual(source.count('"/v1/operations"'), 3)  # the allowlist guard, the journal reader, the raw reader
+        self.assertEqual(source.count('"/v1/operations"'), 2)  # the allowlist guard and the one reader every journal action shares
         status = json.loads((ROOT / "protocol" / "fixtures" / "contract" / "status" / "sunshine-running.json").read_text())["response"]["body"]
         _, connection, pin, _ = serve({"/v1/status": {**status, "reason": "x" * 2000}})
         with connection, pin, self.assertRaises(client_core.ClientError):
@@ -496,6 +496,16 @@ class JournalRebuildTests(unittest.TestCase):
             _, connection, pin, _ = serve({"/v1/operations": fixture_body("list-mixed")})
             with connection, pin:
                 self.assertIn("request_id", core.request("operations", {})["operations"][0])
+
+    def test_the_raw_operations_action_reads_a_full_256_record_journal(self):
+        full = {"protocol_version": 1, "operations": [record(index) for index in range(256)]}
+        with self.assertRaises(client_core.ClientError):
+            client_core.validate_response_limits(full)  # the generic node budget alone would refuse this
+        with tempfile.TemporaryDirectory() as directory:
+            core = paired_core(directory)
+            _, connection, pin, _ = serve({"/v1/operations": full})
+            with connection, pin:
+                self.assertEqual(core.request("operations", {}), full)
 
     def test_the_helper_reaches_the_read_by_a_fixed_action_only(self):
         with tempfile.TemporaryDirectory() as directory:

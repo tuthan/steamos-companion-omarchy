@@ -1501,7 +1501,7 @@ class ClientCore:
         if action == "journal":
             return self._journal(transport)
         if action == "operations":
-            return transport().request("GET", "/v1/operations")
+            return self._operations_read(transport)
         if action == "operation":
             operation_id = arguments.get("operation_id")
             if not isinstance(operation_id, str) or not ID_RE.fullmatch(operation_id):
