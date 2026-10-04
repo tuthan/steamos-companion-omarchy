@@ -45,6 +45,8 @@ DEFAULT_TIMEOUT = 5.0
 POLL_TIMEOUT = 2.5
 DEFAULT_SCOPES = ["status.read", "power.control", "display.control"]
 ALLOWED_SCOPES = frozenset({"status.read", "power.control", "display.control", "sunshine.control"})
+# What an owner can grant, and so all a host's `credential.scopes` may name. sunshine.control is never grantable.
+GRANTABLE_SCOPES = frozenset({"status.read", "power.control", "display.control"})
 
 # Short authentication string. The comparison code is derived from a client
 # nonce and the host certificate fingerprint; it is never transmitted. A relay
@@ -529,7 +531,8 @@ class ClientStore:
         if not ID_RE.fullmatch(value["host_id"]) or not ID_RE.fullmatch(value["client_id"]):
             raise ClientError("client state identity is invalid")
         scopes = value.get("scopes")
-        if not isinstance(scopes, list) or not scopes or not all(scope in ALLOWED_SCOPES for scope in scopes):
+        # An empty list is valid: it is what a host that allows nothing reports.
+        if not isinstance(scopes, list) or not all(scope in ALLOWED_SCOPES for scope in scopes):
             raise ClientError("client state scopes are invalid")
         wake_mac = value.get("wake_mac", "")
         wake_interface = value.get("wake_interface", "")
@@ -692,6 +695,43 @@ def _optional_self_check(value: dict[str, Any]) -> dict[str, Any]:
     except ClientError:
         return {key: item for key, item in value.items() if key != "self_check"}
     return value
+
+
+def credential_scopes(value: Any) -> list[str] | None:
+    """The grantable scopes the host says this credential holds now, or None when it did not say.
+
+    Older hosts send no `credential` block, and a block that is not an object holding a
+    list says nothing either; none of that means "no access", so it is None and the saved
+    scopes stand. An empty list is a real answer. Only grantable scopes are kept, each once,
+    in the host's order, so a value this client does not know, a repeat or a long list
+    cannot widen what it believes.
+    """
+    block = value.get("credential") if isinstance(value, dict) else None
+    scopes = block.get("scopes") if isinstance(block, dict) else None
+    if not isinstance(scopes, list):
+        return None
+    kept: list[str] = []
+    for scope in scopes:
+        if isinstance(scope, str) and scope in GRANTABLE_SCOPES and scope not in kept:
+            kept.append(scope)
+    return kept
+
+
+def _optional_credential(value: dict[str, Any]) -> dict[str, Any]:
+    """Rebuild the additive `credential` block of a status reply from the allowlist.
+
+    Whatever the host sent reaches the saved pairing and the panel only as the scopes
+    `credential_scopes` keeps, so no oversized or hostile block can fail a status read; one
+    that says nothing is dropped, and the host is treated like one that predates it.
+    """
+    if "credential" not in value:
+        return value
+    scopes = credential_scopes(value)
+    return {
+        key: {"scopes": scopes} if key == "credential" else item
+        for key, item in value.items()
+        if key != "credential" or scopes is not None
+    }
 
 
 def _link_text(value: Any, limit: int, *, minimum: int = 1) -> bool:
@@ -982,6 +1022,7 @@ class PinnedTransport:
                 return _optional_link_facts(value) if decode else value
             if path == "/v1/status":
                 value = _optional_self_check(value)
+                value = _optional_credential(value)
             if budget:
                 validate_response_limits(value)
             return value
@@ -1489,9 +1530,7 @@ class ClientCore:
             return PinnedTransport(state["endpoint"], state["certificate_fingerprint"], state["token"], timeout=timeout)
 
         if action == "status":
-            response = transport().request("GET", "/v1/status")
-            self._remember_wake_target(response)
-            return response
+            return self._status(transport)
         if action == "outputs":
             return transport().request("GET", "/v1/display/outputs")
         if action == "display-order":
@@ -1579,6 +1618,9 @@ class ClientCore:
         if response.get("host_id") != state["host_id"]:
             raise ClientError("endpoint responded as a different pinned host")
         state["endpoint"] = endpoint
+        scopes = credential_scopes(response)
+        if scopes is not None:
+            state["scopes"] = scopes
         self.store.save(state)
         return {"saved": True, "endpoint": endpoint}
 
@@ -1645,6 +1687,27 @@ class ClientCore:
             },
             "report": build_report(**bodies),
         }
+
+    def _status(self, transport: Any) -> dict[str, Any]:
+        """The one status read that keeps what the host says about this pairing."""
+        response = transport().request("GET", "/v1/status")
+        self._remember_wake_target(response)
+        self._remember_scopes(response)
+        return response
+
+    def _remember_scopes(self, response: dict[str, Any]) -> None:
+        """Replace the saved scopes with the ones the host reports, upgrade or downgrade alike.
+
+        The owner can change a pairing's scopes after it was made, so the host's word wins. A
+        host that does not report any leaves what was saved at pairing untouched.
+        """
+        scopes = credential_scopes(response)
+        if scopes is None:
+            return
+        state = self.store.load()
+        if state.get("scopes") != scopes:
+            state["scopes"] = scopes
+            self.store.save(state)
 
     def _remember_wake_target(self, response: dict[str, Any]) -> None:
         mac, host_interface, local_interface = _wake_target_details(response.get("wake_target"))
