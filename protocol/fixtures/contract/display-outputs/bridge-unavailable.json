@@ -1,0 +1,22 @@
+{
+  "case": "display-outputs/bridge-unavailable",
+  "description": "No bridge snapshot: the reduced resource shape without generation/profiles/preview.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/display/outputs",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "available": false,
+      "age_ms": null,
+      "reason": "Steam display bridge is unavailable",
+      "outputs": []
+    }
+  }
+}

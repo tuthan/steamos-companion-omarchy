@@ -5,17 +5,21 @@ under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source 
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
-Pinned to Decky `main` at `f6aa384` (seven commits after `v0.5.18`). Vendored:
+Pinned to Decky `main` at `952a079` (eight commits after `v0.5.18`). Vendored:
 `schema.json`; `operation-vocabulary.json`; this file, where everything after
-this note is Decky's text unchanged, including its "DRM link facts" and
-"Operation journal" sections; the flat `fixtures/*.json` that the tests load;
-`fixtures/contract/status/`, the captured `GET /v1/status` exchanges;
-`fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges; and
+this note is Decky's text unchanged, including its "DRM link facts", "Operation
+journal" and "Diagnostic report" sections; the flat `fixtures/*.json` that the
+tests load; `fixtures/diagnostic-report.json`, the cross-client vector for the
+diagnostic report; `fixtures/contract/status/`, the captured `GET /v1/status`
+exchanges; `fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges;
 `fixtures/contract/operations/list-*.json`, the captured `GET /v1/operations`
-list exchanges. Not vendored: `fixtures/pairing-payload.json`, the other
-exchanges under `fixtures/contract/operations/`, and the rest of
-`fixtures/contract/` with its `index.json`. `fixtures/display-order-*.json` are
-Omarchy-local.
+list exchanges; and `fixtures/contract/display-outputs/available.json`,
+`bridge-unavailable.json` and `with-active-preview.json`, the three captured
+`GET /v1/display/outputs` exchanges that vector reads. Not vendored:
+`fixtures/pairing-payload.json`, the other exchanges under
+`fixtures/contract/operations/` and `fixtures/contract/display-outputs/`, and the
+rest of `fixtures/contract/` with its `index.json`. `fixtures/display-order-*.json`
+are Omarchy-local.
 
 The contract deliberately exposes only enumerated operations. It never carries
 raw Steam payloads, arbitrary methods, PIDs, service names, paths, commands,
@@ -271,3 +275,68 @@ The `operations/list-*` fixtures are generated like the rest: `list-mixed`
 holds the caller's records, two Deck-owned display records and one record each
 that must not appear (another client's power operation and a host
 session-restart).
+
+## Diagnostic report
+
+Each client's explicit "export diagnostics" action can include a **report** of
+the paired host for pasting into an issue. It is built only from response bodies
+the client already read (`GET /v1/status`, `/v1/display/outputs`, `/v1/drm`,
+`/v1/operations`) and adds no route. The export is a user action: the client
+shows the text before it is copied or shared, and nothing is sent anywhere.
+
+`fixtures/diagnostic-report.json` is the cross-client vector. Each case gives
+the four response bodies (a contract fixture path or an inline body, or `null`
+for "not read") and the exact `report` every client must rebuild from them.
+`tests/diagnostic_report_vectors.py` generates it from the reference
+implementation, `host/backend/diagnostics.py`; never hand-edit it.
+
+```text
+{"format": "steamos-companion-report-v1",
+ "host":    null | {plugin_version, protocol_version, certificate, listener, bridge,
+                    temperature_source, sunshine},
+ "outputs": null | {available, count, outputs: [...], saved_profiles, preview_active},
+ "link":    null | {available, reason, connectors: [...]},
+ "journal": null | {count, truncated, records: [...]}}
+```
+
+A section is `null` when it was not read or the host does not offer it, and
+present-but-empty when the host answered with nothing, so an older host is
+distinguishable from an empty one.
+
+Redaction (applied identically by every client):
+
+- **Only named facts are copied, never a record.** No operation, request or
+  preview id, no profile id, no host or boot identifier, no endpoint or listener
+  address, no certificate pin or its short form, no wake
+  MAC, no credential or pairing material, no EDID bytes, serial or display name
+  beyond the Steam output's own name and description.
+- **Free text is scrubbed, then bounded.** Control characters become a space,
+  everything outside printable ASCII is dropped, runs of spaces collapse, then in
+  order: URLs `[url]`, `sha256:` pins `[pin]`, MACs `[mac]`, IPv4 (with optional
+  port) and IPv6 `[ip]`, absolute paths of two or more segments `[path]`, and
+  opaque tokens (24 or more of `[A-Za-z0-9_-]` containing a digit) `[token]`;
+  only then is the text cut to its limit, so a token is never cut into a
+  fragment that escapes the rule. Free text is journal `reason` (160), output
+  `name` (32) and `description` (48), link `reason` (96) and journal target
+  strings (48, list entries 32).
+- **Identifiers are matched whole.** Every token and code pattern must match the
+  entire value (a trailing newline does not pass), and a journal record needs a
+  valid `id`, `kind` and `state` even though its `id` is never copied.
+- **Journal `target`** keeps only these keys, in this order: scalars
+  `output_id`, `mode_id`, `generation` (integers under 2^31), `action`,
+  `restart`, `automatic`, `connector`, `output_key`, `target_output_key`,
+  `baseline_output_key`, `target`; string lists `connectors`, `output_keys` (at
+  most 4 entries); and `mode` as `"<w>x<h>[@<hz>]"`.
+- **Modes** are `"<w>x<h>"` with `@<hz>` when a finite refresh rate between 0 and
+  1000 is known, formatted to two decimals with trailing zeros removed (`59.94`,
+  `60`, `59.9`).
+- **Bounds:** 8 methods, 8 outputs with 24 modes each, 8 connectors with 32
+  resolutions each, 20 journal records (`count` and `truncated` report what was
+  cut). If the compact JSON still exceeds 12 KiB, journal records are dropped
+  from the oldest end until it fits and `truncated` is set.
+- **Never fail:** a malformed body yields a null section, not an error.
+
+Vector cases marked `"strict": true` must match exactly. `hostile-shape` is
+`"strict": false`: the body is malformed, so a client whose own decoder refuses
+it may report that section as `null`, but it must not fail and must not repeat
+any identifier, address, pin or token from the input.

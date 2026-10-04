@@ -1,0 +1,55 @@
+{
+  "case": "display-outputs/available",
+  "description": "Remote Steam DisplayManager inventory with no profiles and no preview.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/display/outputs",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "available": true,
+      "age_ms": 0,
+      "reason": null,
+      "generation": 4,
+      "outputs": [
+        {
+          "id": "1",
+          "name": "HDMI-A-1",
+          "description": "Reference",
+          "is_internal": false,
+          "current_mode_id": "3352",
+          "modes": [
+            {
+              "id": "3352",
+              "width": 3440,
+              "height": 1440,
+              "refresh_hz": 59
+            },
+            {
+              "id": "2",
+              "width": 3840,
+              "height": 2160,
+              "refresh_hz": 60
+            },
+            {
+              "id": "0",
+              "width": 1920,
+              "height": 1080,
+              "refresh_hz": 60
+            }
+          ],
+          "generation": 4,
+          "rgb_range": 0
+        }
+      ],
+      "profiles": [],
+      "preview": null
+    }
+  }
+}

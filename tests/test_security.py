@@ -120,6 +120,8 @@ class ResponseSecurityTests(unittest.TestCase):
             with self.subTest(value=str(value)[:60]), self.assertRaises(client.ClientError):
                 client.validate_response_limits(value)
         for fixture in (ROOT / 'protocol/fixtures').glob('*.json'):
+            if fixture.name == 'diagnostic-report.json':
+                continue  # the cross-client report vector holds eight cases, not one response body
             client.validate_response_limits(json.loads(fixture.read_text()))
         client.validate_response_limits({'modes': [{'id': str(i)} for i in range(256)]})
 

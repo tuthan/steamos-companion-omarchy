@@ -1,0 +1,80 @@
+{
+  "case": "display-outputs/with-active-preview",
+  "description": "While a display preview accepted by this client is active.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/display/outputs",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "available": true,
+      "age_ms": 0,
+      "reason": null,
+      "generation": 4,
+      "outputs": [
+        {
+          "id": "1",
+          "name": "HDMI-A-1",
+          "description": "Reference",
+          "is_internal": false,
+          "current_mode_id": "3352",
+          "modes": [
+            {
+              "id": "3352",
+              "width": 3440,
+              "height": 1440,
+              "refresh_hz": 59
+            },
+            {
+              "id": "2",
+              "width": 3840,
+              "height": 2160,
+              "refresh_hz": 60
+            },
+            {
+              "id": "0",
+              "width": 1920,
+              "height": 1080,
+              "refresh_hz": 60
+            }
+          ],
+          "generation": 4,
+          "rgb_range": 0
+        }
+      ],
+      "profiles": [],
+      "preview": {
+        "preview_id": "op-fixture0001xxxxxxxxxxxxx",
+        "output_identity": {
+          "id": "1",
+          "name": "HDMI-A-1",
+          "description": "Reference",
+          "is_internal": false
+        },
+        "output_id": "1",
+        "generation": 4,
+        "baseline_mode": {
+          "id": "3352",
+          "width": 3440,
+          "height": 1440,
+          "refresh_hz": 59
+        },
+        "target_mode": {
+          "id": "2",
+          "width": 3840,
+          "height": 2160,
+          "refresh_hz": 60
+        },
+        "deadline": 1789300815.25,
+        "restore_state": null,
+        "created_at": "2026-09-13T12:00:00.250000Z"
+      }
+    }
+  }
+}
