@@ -214,6 +214,7 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
     if command == "display":
         action = args.display_command
         if action == "save-current":
+            core.require_scope("save-current")
             _confirmed(args, _CONFIRM_TEXT)
             return core.run({
                 "action": "save-current",
@@ -229,6 +230,7 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
                 "generation": args.generation,
             })
         if action == "keep":
+            core.require_scope("confirm")
             _confirmed(args, "Can you see the picture on the paired host's display? Keeping it saves this mode.")
             return core.run({"action": "confirm", "preview_id": _preview_id(core, args.preview_id), "visible": True})
         if action == "revert":
@@ -242,6 +244,7 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
         if action == "order-save":
             keys = [item.strip() for item in args.output_keys.split(",") if item.strip()]
             if args.restart:
+                core.require_scope("display-order-restart")
                 _confirmed(args, "Save this display order and restart Gaming Mode on the paired host?")
             return core.run({
                 "action": "display-order-restart" if args.restart else "display-order-save",
@@ -251,6 +254,7 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
         if action == "order-reset":
             return core.run({"action": "display-order-reset"})
     if command == "power":
+        core.require_scope("power")
         _confirmed(args, f"{args.action.title()} the exact paired SteamOS host?")
         return core.run({"action": args.action})
     if command == "wake":

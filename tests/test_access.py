@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import io
 import json
 import tempfile
 import unittest
@@ -19,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from client import client_core
+from client import cli, client_core
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "protocol" / "fixtures" / "contract"
@@ -383,6 +384,255 @@ class StoreTests(unittest.TestCase):
         state = core.store.load()
         state["scopes"] = []
         core.store.save(state)
+
+
+ACCEPTED = (202, {"protocol_version": 1, "operation": {"id": "op-test0001", "state": "accepted"}})
+# Every action that changes the host or the pairing: (core action, arguments, the one route it posts to, the scope it needs).
+POSTS = [
+    ("power", {"action": "suspend"}, "/v1/power", "Power"),
+    ("sunshine-restart", {}, "/v1/sunshine/restart", "Power"),
+    ("preview", {"output_id": "1", "mode_id": "2", "generation": 4}, "/v1/display/preview", "Display"),
+    ("confirm", {"preview_id": "preview-1", "visible": True}, "/v1/display/confirm", "Display"),
+    ("restore", {"source": "verified"}, "/v1/display/restore", "Display"),
+    ("save-current", {"output_id": "1", "generation": 4, "visible": True}, "/v1/display/save-current", "Display"),
+    ("display-order-save", {"output_keys": ["drm:card0:HDMI-A-1"], "generation": 3}, "/v1/display/order", "Display"),
+    ("display-order-restart", {"output_keys": ["drm:card0:HDMI-A-1"], "generation": 3}, "/v1/display/order", "Display"),
+    ("display-order-reset", {}, "/v1/display/order/automatic", "Display"),
+    ("revoke", {}, "/v1/pair/revoke-self", None),
+]
+READS = [
+    ("outputs", {}, "/v1/display/outputs"),
+    ("display-order", {}, "/v1/display/order"),
+    ("link-facts", {}, "/v1/drm"),
+    ("journal", {}, "/v1/operations"),
+    ("operations", {}, "/v1/operations"),
+    ("operation", {"operation_id": "op-test0001"}, "/v1/operations/op-test0001"),
+]
+READ_BODY = (200, {"protocol_version": 1, "outputs": [], "operations": [], "operation": {"id": "op-test0001", "state": "succeeded"}})
+
+
+def routes(status: Any = None, **extra: Any) -> dict[str, Any]:
+    table: dict[str, Any] = {"/v1/status": (200, status_body("sunshine-running") if status is None else status)}
+    for _name, _args, path, _scope in POSTS:
+        table[path] = ACCEPTED
+    for _name, _args, path in READS:
+        table[path] = READ_BODY
+    table.update(extra)
+    return table
+
+
+def not_allowed(label: str) -> str:
+    return f"The host owner has not allowed {label} for this pairing."
+
+
+class GateTests(unittest.TestCase):
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+        self.directory = self._directory.name
+
+    def posts(self, connection: FakeConnection) -> list[tuple[str, str]]:
+        return [path for path in connection.paths() if path[0] == "POST"]
+
+    def attempt(self, core: client_core.ClientCore, action: str, arguments: dict, table: dict[str, Any]):
+        with serving(table) as connection:
+            try:
+                return core.request(action, copy.deepcopy(arguments)), connection
+            except client_core.ClientError as exc:
+                return exc, connection
+
+    def test_a_pairing_with_every_scope_reaches_the_host_unasked(self):
+        for action, arguments, path, _label in POSTS:
+            with self.subTest(action):
+                core = paired_core(self.directory, FULL)
+                result, connection = self.attempt(core, action, arguments, routes())
+                self.assertNotIsInstance(result, Exception)
+                self.assertEqual([("POST", path)], connection.paths(), "no status read, one request to its fixed route")
+
+    def test_a_view_only_pairing_is_refused_before_anything_is_sent(self):
+        for action, arguments, path, label in POSTS:
+            if label is None:
+                continue
+            with self.subTest(action):
+                core = paired_core(self.directory, VIEW_ONLY)
+                result, connection = self.attempt(core, action, arguments, routes(status_body("view-only-credential")))
+                self.assertIsInstance(result, client_core.ClientError)
+                self.assertEqual(not_allowed(label), str(result))
+                self.assertFalse(result.unknown)
+                self.assertIsNone(result.status)
+                self.assertEqual([], self.posts(connection))
+                self.assertEqual(VIEW_ONLY, core.store.load()["scopes"])
+
+    def test_power_and_display_are_separate_scopes(self):
+        cases = {
+            ("status.read", "power.control"): {"Display"},
+            ("status.read", "display.control"): {"Power"},
+            ("status.read",): {"Power", "Display"},
+            (): {"Power", "Display"},
+        }
+        for held, refused in cases.items():
+            for action, arguments, path, label in POSTS:
+                if label is None:
+                    continue
+                with self.subTest(held=held, action=action):
+                    core = paired_core(self.directory, list(held))
+                    result, connection = self.attempt(core, action, arguments, routes(status_body(credential={"scopes": list(held)})))
+                    if label in refused:
+                        self.assertEqual(not_allowed(label), str(result))
+                        self.assertEqual([], self.posts(connection))
+                    else:
+                        self.assertNotIsInstance(result, Exception)
+                        self.assertEqual([("POST", path)], self.posts(connection))
+
+    def test_sunshine_recovery_needs_power_not_display(self):
+        core = paired_core(self.directory, ["status.read", "display.control"])
+        result, connection = self.attempt(core, "sunshine-restart", {}, routes(status_body(credential={"scopes": ["status.read", "display.control"]})))
+        self.assertEqual(not_allowed("Power"), str(result))
+        self.assertEqual([], self.posts(connection))
+
+    def test_revoking_ones_own_pairing_and_every_read_need_no_scope(self):
+        core = paired_core(self.directory, VIEW_ONLY)
+        for action, arguments, path, label in POSTS:
+            if label is None:
+                result, connection = self.attempt(core, action, arguments, routes(status_body("view-only-credential")))
+                self.assertNotIsInstance(result, Exception)
+                self.assertEqual([("POST", path)], connection.paths())
+        for action, arguments, path in READS:
+            with self.subTest(action):
+                result, connection = self.attempt(core, action, arguments, routes(status_body("view-only-credential")))
+                self.assertNotIsInstance(result, Exception)
+                self.assertEqual([("GET", path)], connection.paths())
+        result, connection = self.attempt(core, "status", {}, routes(status_body("view-only-credential")))
+        self.assertEqual([("GET", "/v1/status")], connection.paths())
+
+    def test_a_pairing_with_no_scope_at_all_can_still_read_status(self):
+        core = paired_core(self.directory, [])
+        result, connection = self.attempt(core, "status", {}, routes(status_body(credential={"scopes": []})))
+        self.assertNotIsInstance(result, Exception)
+        self.assertEqual([], core.store.load()["scopes"])
+
+    def test_a_scope_the_owner_has_just_granted_is_learned_before_refusing(self):
+        core = paired_core(self.directory, VIEW_ONLY)
+        result, connection = self.attempt(core, "power", {"action": "suspend"}, routes(status_body("sunshine-running")))
+        self.assertNotIsInstance(result, Exception)
+        self.assertEqual([("GET", "/v1/status"), ("POST", "/v1/power")], connection.paths())
+        self.assertEqual(FULL, core.store.load()["scopes"])
+        self.assertEqual("op-test0001", core.store.load()["pending_operation"]["id"], "the operation handle is saved on top of the new scopes")
+
+    def test_the_request_is_judged_by_what_the_host_says_now_not_by_what_was_saved_at_pairing(self):
+        core = paired_core(self.directory, FULL)
+        run_status(core, status_body("view-only-credential"))
+        result, connection = self.attempt(core, "restore", {"source": "verified"}, routes(status_body("view-only-credential")))
+        self.assertEqual(not_allowed("Display"), str(result))
+        self.assertEqual([("GET", "/v1/status")], connection.paths(), "the host is asked once, and still says no")
+
+    def test_a_host_that_does_not_report_scopes_is_judged_by_what_was_saved(self):
+        core = paired_core(self.directory, VIEW_ONLY)
+        result, connection = self.attempt(core, "power", {"action": "restart"}, routes(status_body(credential=Ellipsis)))
+        self.assertEqual(not_allowed("Power"), str(result))
+        self.assertEqual([], self.posts(connection))
+        self.assertEqual(VIEW_ONLY, core.store.load()["scopes"])
+
+    def test_an_unreachable_host_is_a_connection_error_never_a_claim_about_access(self):
+        for answer in (OSError("connection refused"), TimeoutError("timed out")):
+            with self.subTest(answer=answer):
+                core = paired_core(self.directory, VIEW_ONLY)
+                result, connection = self.attempt(core, "power", {"action": "suspend"}, routes(status=None, **{"/v1/status": (200, answer)}))
+                self.assertIsInstance(result, client_core.ClientError)
+                self.assertIn("host connection failed", str(result))
+                self.assertNotRegex(str(result), r"(?i)allowed|revoked|removed|forgot")
+                self.assertEqual([], self.posts(connection))
+                self.assertEqual(VIEW_ONLY, core.store.load()["scopes"])
+                self.assertTrue(core.inspect()["paired"])
+
+    def test_a_refusal_removes_nothing_and_marks_nothing_invalid(self):
+        core = paired_core(self.directory, VIEW_ONLY)
+        before = core.store.path.read_bytes()
+        result, _ = self.attempt(core, "display-order-reset", {}, routes(status_body("view-only-credential", wake_target=Ellipsis)))
+        self.assertEqual(not_allowed("Display"), str(result))
+        self.assertEqual(before, core.store.path.read_bytes())
+        self.assertEqual(sorted(path.name for path in Path(self.directory).iterdir()), ["client.json"])
+
+    def test_the_helper_actions_that_name_a_power_action_are_gated_too(self):
+        for name in ("suspend", "restart", "shutdown", "reboot"):
+            with self.subTest(name):
+                core = paired_core(self.directory, VIEW_ONLY)
+                with serving(routes(status_body("view-only-credential"))) as connection, self.assertRaises(client_core.ClientError) as raised:
+                    core.run({"action": name})
+                self.assertEqual(not_allowed("Power"), str(raised.exception))
+                self.assertEqual([], self.posts(connection))
+
+    def test_the_gate_lists_every_scope_the_routes_need(self):
+        self.assertEqual({"power", "sunshine-restart", "preview", "confirm", "restore", "save-current", "display-order-save", "display-order-restart", "display-order-reset"}, set(client_core.ACTION_SCOPES))
+        self.assertEqual({action: {"Power": "power.control", "Display": "display.control"}[label] for action, _args, _path, label in POSTS if label}, client_core.ACTION_SCOPES)
+        self.assertTrue(set(client_core.ACTION_SCOPES.values()) <= client_core.GRANTABLE_SCOPES)
+        self.assertEqual({"status.read": "Status", "power.control": "Power", "display.control": "Display"}, client_core.SCOPE_LABELS)
+
+
+class CliGateTests(unittest.TestCase):
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+        self.directory = self._directory.name
+
+    def run_cli(self, core: client_core.ClientCore, table: dict[str, Any], *argv: str):
+        out, err = io.StringIO(), io.StringIO()
+        with serving(table) as connection, mock.patch.object(cli, "ClientCore", lambda: core), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = cli.main(list(argv))
+        return code, out.getvalue(), err.getvalue(), connection
+
+    def test_each_command_that_changes_the_host_refuses_a_view_only_pairing_in_plain_words(self):
+        view_only = routes(status_body("view-only-credential"))
+        commands = [
+            (("power", "suspend", "--yes", "--acknowledged"), "Power"),
+            (("power", "restart"), "Power"),
+            (("power", "shutdown"), "Power"),
+            (("sunshine", "recover"), "Power"),
+            (("display", "preview", "--output-id", "1", "--mode-id", "2", "--generation", "4"), "Display"),
+            (("display", "keep", "--preview-id", "preview-1", "--yes", "--acknowledged"), "Display"),
+            (("display", "revert"), "Display"),
+            (("display", "restore"), "Display"),
+            (("display", "save-current", "--output-id", "1", "--generation", "4", "--yes", "--acknowledged"), "Display"),
+            (("display", "order-save", "--output-keys", "drm:card0:HDMI-A-1", "--generation", "3"), "Display"),
+            (("display", "order-save", "--output-keys", "drm:card0:HDMI-A-1", "--generation", "3", "--restart", "--yes", "--acknowledged"), "Display"),
+            (("display", "order-reset"), "Display"),
+        ]
+        for argv, label in commands:
+            for flag in ("--json", "--plain"):
+                with self.subTest(argv=argv, flag=flag):
+                    core = paired_core(self.directory, VIEW_ONLY)
+                    code, out, err, connection = self.run_cli(core, view_only, flag, *argv)
+                    self.assertEqual(1, code)
+                    if flag == "--json":
+                        self.assertEqual({"ok": False, "error": not_allowed(label), "unknown": False}, json.loads(out))
+                    else:
+                        self.assertIn(not_allowed(label), out)
+                    self.assertEqual([], [path for path in connection.paths() if path[0] == "POST"])
+
+    def test_the_owner_is_not_asked_to_type_yes_for_something_that_will_be_refused(self):
+        view_only = routes(status_body("view-only-credential"))
+        for argv in (
+            ("power", "suspend", "--yes", "--acknowledged"),
+            ("display", "save-current", "--output-id", "1", "--generation", "4", "--yes", "--acknowledged"),
+            ("display", "keep", "--preview-id", "preview-1", "--yes", "--acknowledged"),
+            ("display", "order-save", "--output-keys", "drm:card0:HDMI-A-1", "--generation", "3", "--restart", "--yes", "--acknowledged"),
+        ):
+            with self.subTest(argv=argv):
+                code, _out, err, _connection = self.run_cli(paired_core(self.directory, VIEW_ONLY), view_only, *argv)
+                self.assertEqual(1, code)
+                self.assertEqual("", err, "no confirmation prompt is written for a refused command")
+
+    def test_status_and_the_journal_stay_available_to_a_view_only_pairing(self):
+        view_only = routes(status_body("view-only-credential"))
+        for argv in (("status",), ("journal", "list"), ("journal", "view"), ("journal", "get", "op-test0001"), ("outputs",), ("display", "order"), ("sunshine", "status"), ("inspect",)):
+            with self.subTest(argv=argv):
+                code, out, _err, _connection = self.run_cli(paired_core(self.directory, VIEW_ONLY), view_only, "--json", *argv)
+                self.assertEqual(0, code, out)
+
+    def test_a_full_pairing_still_confirms_and_sends(self):
+        code, out, err, connection = self.run_cli(paired_core(self.directory, FULL), routes(), "--json", "power", "suspend", "--yes", "--acknowledged")
+        self.assertEqual((2, [("POST", "/v1/power")]), (code, connection.paths()), "an accepted operation exits 2, as before")
+        self.assertIn("Suspend the exact paired SteamOS host?", err)
 
 
 if __name__ == "__main__":

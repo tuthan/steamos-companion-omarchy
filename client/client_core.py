@@ -47,6 +47,21 @@ DEFAULT_SCOPES = ["status.read", "power.control", "display.control"]
 ALLOWED_SCOPES = frozenset({"status.read", "power.control", "display.control", "sunshine.control"})
 # What an owner can grant, and so all a host's `credential.scopes` may name. sunshine.control is never grantable.
 GRANTABLE_SCOPES = frozenset({"status.read", "power.control", "display.control"})
+# How an owner names each grantable scope, in the order a host lists them.
+SCOPE_LABELS = {"status.read": "Status", "power.control": "Power", "display.control": "Display"}
+# What each action that changes the host needs from the pairing. Reads, the journal and
+# revoking one's own pairing need only a valid credential, so they are not listed.
+ACTION_SCOPES = {
+    "power": "power.control",
+    "sunshine-restart": "power.control",
+    "preview": "display.control",
+    "confirm": "display.control",
+    "restore": "display.control",
+    "save-current": "display.control",
+    "display-order-save": "display.control",
+    "display-order-restart": "display.control",
+    "display-order-reset": "display.control",
+}
 
 # Short authentication string. The comparison code is derived from a client
 # nonce and the host certificate fingerprint; it is never transmitted. A relay
@@ -1522,7 +1537,27 @@ class ClientCore:
             return result
         return view
 
+    def require_scope(self, action: str, timeout: Any = None) -> None:
+        """Refuse, before anything is sent, an action the pairing does not hold the scope for.
+
+        The owner can change a pairing's scopes at any time and a one-shot command has no
+        status poll in front of it, so a scope the saved pairing lacks is first checked
+        against the host's current word. If the host cannot be asked, that error is the
+        answer: nothing is refused on a guess. Nothing is ever removed or marked invalid.
+        """
+        needed = ACTION_SCOPES.get(action)
+        if needed is None:
+            return
+        state = self.store.load()
+        if needed in state["scopes"]:
+            return
+        seconds = self._timeout(timeout)
+        self._status(lambda: PinnedTransport(state["endpoint"], state["certificate_fingerprint"], state["token"], timeout=seconds))
+        if needed not in self.store.load()["scopes"]:
+            raise ClientError(f"The host owner has not allowed {SCOPE_LABELS[needed]} for this pairing.")
+
     def request(self, action: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        self.require_scope(action, arguments.get("timeout"))
         state = self.store.load()
         timeout = self._timeout(arguments.get("timeout"))
 
