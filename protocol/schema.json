@@ -46,6 +46,7 @@
     },
     "sunshine": {"$ref": "#/$defs/sunshine"},
     "self_check": {"$ref": "#/$defs/self_check"},
+    "credential": {"$ref": "#/$defs/credential"},
     "drm": {"$ref": "#/$defs/drm"},
     "outputs": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/output"}},
     "display_order": {"$ref": "#/$defs/display_order"},
@@ -81,6 +82,14 @@
             "additionalProperties": false
           }
         }
+      },
+      "additionalProperties": false
+    },
+    "credential": {
+      "type": "object",
+      "required": ["scopes"],
+      "properties": {
+        "scopes": {"type": "array", "maxItems": 3, "items": {"enum": ["status.read", "power.control", "display.control"]}}
       },
       "additionalProperties": false
     },

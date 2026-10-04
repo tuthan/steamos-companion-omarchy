@@ -81,6 +81,13 @@
           "protocol": 1,
           "plugin": "unknown"
         }
+      },
+      "credential": {
+        "scopes": [
+          "status.read",
+          "power.control",
+          "display.control"
+        ]
       }
     }
   }

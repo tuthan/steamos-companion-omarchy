@@ -5,13 +5,15 @@ under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source 
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
-Pinned to Decky `main` at `e300376` (eleven commits after `v0.5.18`). Vendored:
+Pinned to Decky `main` at `0219c27` (fourteen commits after `v0.5.18`). Vendored:
 `schema.json`; `operation-vocabulary.json`; this file, where everything after
 this note is Decky's text unchanged, including its "DRM link facts", "Operation
-journal" and "Diagnostic report" sections; the flat `fixtures/*.json` that the
-tests load; `fixtures/diagnostic-report.json`, the cross-client vector for the
-diagnostic report; `fixtures/contract/status/`, the captured `GET /v1/status`
-exchanges; `fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges;
+journal", "Diagnostic report" and "Credential scopes and the remote-access lock"
+sections; the flat `fixtures/*.json` that the tests load;
+`fixtures/diagnostic-report.json`, the cross-client vector for the diagnostic
+report; `fixtures/contract/status/`, the captured `GET /v1/status` exchanges,
+including `view-only-credential.json` and `scopes-changed-by-owner.json`;
+`fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges;
 `fixtures/contract/operations/list-*.json`, the captured `GET /v1/operations`
 list exchanges; and `fixtures/contract/display-outputs/available.json`,
 `bridge-unavailable.json` and `with-active-preview.json`, the three captured
@@ -342,3 +344,54 @@ compliant client's own decoder reaches them, and they must match exactly. `hosti
 `"strict": false`: the body is malformed, so a client whose own decoder refuses
 it may report that section as `null`, but it must not fail and must not repeat
 any identifier, address, pin or token from the input.
+
+## Credential scopes and the remote-access lock
+
+A paired credential holds some of three scopes. `status.read` is always held and
+guards every read (`GET /v1/status`, `/v1/display/outputs`, `/v1/display/order`,
+`/v1/drm`). `power.control` guards `POST /v1/power` and `POST /v1/sunshine/restart`.
+`display.control` guards every `POST /v1/display/*`. `sunshine.control` exists in the
+host but is never grantable. `GET /v1/operations`, `GET /v1/operations/{id}` and
+`POST /v1/pair/revoke-self` need only a valid credential, so a view-only client can
+still read its own journal and remove its own pairing.
+
+**View only.** The owner may approve a pairing with fewer scopes than it asked for;
+`status.read` alone is the view-only role. The delivered `credential.scopes` is the
+approved list, not the requested one.
+
+**Editing after pairing.** The owner changes a paired client's scopes on the host
+at any time. The very next request is judged by the new list and a missing scope is
+`403 forbidden`. When a scope is removed the host cancels that client's queued
+operations of that kind (`accepted`, not yet sent: `power.` and `sunshine.` for
+`power.control`, `display.` for `display.control`). Work already sent is not
+recalled, and a display preview the client already started is reverted by the
+host's own deadline because the client can no longer confirm it. A cancelled
+operation is never sent to Steam, even when its worker was already waiting for
+its turn behind another operation.
+
+**What the credential holds.** `GET /v1/status` carries an optional
+`credential` block, present only for a client credential:
+
+```text
+"credential": {"scopes": ["status.read", "power.control"]}
+```
+
+It lists the grantable scopes the credential holds now, in the order above. An older
+host omits the block; a client then keeps what it stored at pairing and treats
+nothing as changed. A client adopts the reported list, drops any value it does not
+know, and may use it to say what the pairing can do before the user hits a `403`.
+It never widens what a client believes from any other field.
+Fixtures: `status/view-only-credential`, `status/scopes-changed-by-owner`,
+`power/forbidden-after-owner-removed-scope`.
+
+**Remote-access lock.** The owner's panic switch on the host closes the listener
+and keeps it closed across restarts, so no device can discover, connect, read
+status or pair until the owner unlocks it. Locking also expires pending pairing
+requests and cancels every paired client's queued power, Sunshine and display
+operations. Operations already sent and the host's own local work are untouched.
+Pairings and credentials are kept: after the owner unlocks, every client works
+again with the access it had. On the host, creating or approving a pairing while
+locked is refused (`409 host_locked`), and a request that still reaches the
+handler is answered `503 host_locked`; that is a safety net, not something a client
+should rely on. A client sees a refused or timed-out connection, which looks the
+same as a host that is off, so it must not say its pairing was removed.

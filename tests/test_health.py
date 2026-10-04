@@ -59,6 +59,8 @@ FIXTURE_ROWS = {
     "self-check-certificate-unusable": {"certificate": ("warn", "Not ready — pairing is unavailable")},
     "self-check-plugin-version-unknown": {"versions": ("unknown", "Plugin version unknown · protocol 1")},
     "self-check-steam-temperature": {"temperature": ("ok", "Read from Steam")},
+    "view-only-credential": {},
+    "scopes-changed-by-owner": {},
 }
 NUDGE_OK = {"state": "ok", "text": "Host protocol 1 matches this client."}
 NUDGE_ABSENT = {
