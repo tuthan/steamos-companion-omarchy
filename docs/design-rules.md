@@ -201,6 +201,24 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   glyph, and its text follows the Decky card; the functions are plain JavaScript
   between the `link-facts` markers in `Panel.qml` so `tests/test_linkfacts.py`
   can run them against the pinned fixtures.
+- The host journal is diagnostics, not status. `GET /v1/operations` lists what
+  the host recorded; the panel shows it under Settings → Connection details in
+  the wording of `protocol/operation-vocabulary.json`, which the embedded table
+  must equal. A completed state is never worded as a visible picture: only an
+  outcome whose code contains "visible" says the owner confirmed one, and a
+  standing note says so. A code the table lacks is shown as sanitised text, never
+  hidden. The transport rebuilds every record from an allowlist (tokens must
+  match the identifier pattern or the record is dropped, text is cut and loses
+  control characters, a target is at most eight scalars, short string lists or
+  one level of scalars) and keeps the newest 64 of at most 256; a longer reply,
+  a 404, a refusal or any failure is "not available", never an error, and it
+  touches no status, connection, or action line. The read is one request on the
+  poll lane when Settings opens and one per explicit Refresh, at least five
+  seconds apart, never on a timer and never while the panel is closed (PD11);
+  nothing is kept once the panel closes or another host is paired. The
+  presentation functions are plain JavaScript between the `journal` markers in
+  `Panel.qml` so `tests/test_journal.py` can run them against the pinned
+  fixtures.
 - Multiple monitors may instantiate the widget, but the server-side
   `request_id` and host mutation lane prevent duplicate remote mutations.
 

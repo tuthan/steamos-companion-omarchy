@@ -143,6 +143,7 @@ def _parser() -> argparse.ArgumentParser:
     journal = commands.add_parser("journal", help="read operation records")
     journal_commands = journal.add_subparsers(dest="journal_command", required=True)
     journal_commands.add_parser("list")
+    journal_commands.add_parser("view", help="read the bounded journal the panel shows (older hosts report it unavailable)")
     get_operation = journal_commands.add_parser("get")
     get_operation.add_argument("operation_id")
 
@@ -267,6 +268,8 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
     if command == "journal":
         if args.journal_command == "list":
             return core.run({"action": "operations"})
+        if args.journal_command == "view":
+            return core.run({"action": "journal"})
         return core.run({"action": "operation", "operation_id": args.operation_id})
     if command == "pair":
         if args.pair_command == "discover":

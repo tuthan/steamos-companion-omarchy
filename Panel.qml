@@ -94,6 +94,19 @@ Panel {
   // until the next read lands.
   readonly property var linkFacts: root.linkFactsDataKey !== "" && root.linkFactsDataKey === root.linkFactsTopology(root.outputList) ? root.linkFactsData : null
 
+  // ---- host operation journal --------------------------------------------
+  // Diagnostics: what the host recorded about operations. Read when Settings
+  // opens and when the owner presses Refresh, never on a timer, never while the
+  // panel is closed, and never twice within five seconds. Nothing is kept once
+  // the panel closes or another host is paired. "idle", "loading", "ready" or
+  // "unavailable"; an older host or any failure is "unavailable", never an
+  // error, and no read touches the status, connection, or action lines.
+  property string journalState: "idle"
+  property var journalData: null
+  property real journalStartedMs: 0
+  property int journalEpoch: 0
+  property string journalIdentity: ""
+
   // ---- helper lifecycle -------------------------------------------------
   property int pollGeneration: 0
   property var helperQueue: []
@@ -698,11 +711,13 @@ Panel {
       if (!result.ok) {
         root.localData = {paired: false}
         root.syncLinkFactsIdentity()
+        root.syncJournalIdentity()
         root.actionMessage = friendlyError(result.error)
         return
       }
       root.localData = result.data || {paired: false}
       root.syncLinkFactsIdentity()
+      root.syncJournalIdentity()
       root.pendingPairing = root.localData.pending_pairing || null
       if (root.pendingPairing) root.pairingCountdownSeconds = root.pendingPairing.seconds_remaining || 0
       root.endpointText = root.localData.endpoint || ""
@@ -981,7 +996,11 @@ Panel {
       // A new display interaction: read the link facts again for it.
       root.linkFactsRequestedKey = ""
       root.requestLinkFacts()
-    } else if (next === "settings" && root.paired) root.refreshConnectionDetails()
+    } else if (next === "settings" && root.paired) {
+      root.refreshConnectionDetails()
+      // Entering the view that holds the journal is one of its two read points.
+      root.requestJournal()
+    }
   }
 
   function viewByDelta(delta) {
@@ -1034,6 +1053,7 @@ Panel {
     for (var index = 0; index < hosts.length; index++) keys.push("host:" + hosts[index].endpoint)
     keys.push("pair")
     if (root.pendingPairing) keys.push("cancel")
+    if (root.paired) keys.push("journal")
     keys.push("wake")
     keys.push("revoke")
     keys.push("forget")
@@ -1090,6 +1110,7 @@ Panel {
     if (key.indexOf("host:") === 0) return !root.actionBusy
     if (key === "pair") return !root.actionBusy && !root.pendingPairing && !root.pairingBusy
     if (key === "cancel") return !!root.pendingPairing
+    if (key === "journal") return root.paired && root.journalMayRead(root.journalStartedMs, root.nowMs)
     if (key === "wake") return !!root.wakeMac && !root.actionBusy
     if (key === "revoke") return root.paired && !root.actionBusy
     if (key === "forget") return root.paired && !root.actionBusy
@@ -1182,6 +1203,7 @@ Panel {
       }
       else if (key === "pair") startPairing()
       else if (key === "cancel") cancelPairing()
+      else if (key === "journal") root.requestJournal()
       else if (key === "wake") wakeHost()
       else if (key === "revoke") openConfirmation("revoke")
       else if (key === "forget") openConfirmation("forget")
@@ -1248,6 +1270,7 @@ Panel {
   function resetPairedState() {
     root.localData = {paired: false}
     root.syncLinkFactsIdentity()
+    root.syncJournalIdentity()
     root.statusData = null
     root.outputsData = null
     root.outputsSignature = ""
@@ -1685,6 +1708,284 @@ Panel {
     root.linkFactsData = null
     root.linkFactsDataKey = ""
     root.linkFactsRequestedKey = ""
+  }
+
+  // ---- host operation journal: the optional `GET /v1/operations` read -------
+  // Pure presentation, kept in step with the Decky card (its journal block) so
+  // both clients word a record the same way. The wording table below is the
+  // protocol's operation-vocabulary.json; tests/test_journal.py fails if the two
+  // drift. A record says what the host did and read back. Nothing here turns a
+  // completed state into a claim about the picture: only an outcome whose code
+  // says the owner confirmed it carries the word "visible". A code this table
+  // lacks is shown as sanitised text, never hidden and never guessed at. The
+  // helper has already rebuilt every record from an allowlist; this block
+  // sanitises again because it is the display boundary. tests/test_journal.py
+  // runs it under Node against the pinned fixtures, so keep it free of QML
+  // properties.
+  // journal:begin
+  function journalVocabulary() {
+    return {
+      states: {
+        "accepted": "Requested",
+        "dispatched": "In progress",
+        "observed_return": "Returned, not confirmed",
+        "succeeded": "Completed",
+        "failed": "Failed",
+        "unknown": "Result not confirmed"
+      },
+      kinds: {
+        "power.suspend": "Suspend",
+        "power.restart": "Restart",
+        "power.shutdown": "Shut down",
+        "display.preview": "Display mode preview",
+        "display.confirm": "Display preview confirmation",
+        "display.restore": "Display restore",
+        "display.save-current": "Save current display mode",
+        "display.order": "Gaming Mode display order",
+        "display.order.reset": "Reset display order",
+        "display.preference": "Gaming Mode display preference",
+        "display.selection.preview": "Screen selection preview",
+        "display.selection.revert": "Screen selection revert",
+        "display.session-restart": "Gaming Mode restart",
+        "sunshine.restart": "Start or restart Sunshine",
+        "pair.revoke-self": "Revoke this client"
+      },
+      outcomes: {
+        "method_returned": "Steam returned from the call; the physical result is not confirmed",
+        "mode_request_returned": "Mode request returned; waiting for confirmation",
+        "target_active_read_back": "Selected screen read back as active; waiting for confirmation",
+        "target_active_reconciled_after_reload": "Selected screen read back as active after a plugin reload",
+        "visible_picture_confirmed": "Owner confirmed the picture was visible",
+        "active_screen_visible_and_confirmed": "Owner confirmed the selected screen was visible",
+        "current_mode_visible_and_read_back": "Current mode read back; owner confirmed the picture was visible",
+        "restored_and_read_back": "Previous mode restored and read back",
+        "baseline_screen_restored": "Previous screen restored",
+        "gamescope_output_configured": "Gamescope output saved; applies after Gaming Mode restarts",
+        "gamescope_output_configured_and_restart_requested": "Gamescope output saved; Gaming Mode restart requested",
+        "gamescope_output_configured_restart_failed": "Gamescope output saved; Gaming Mode restart failed",
+        "gamescope_output_cleared": "Gamescope output preference cleared",
+        "gamescope_session_restart_requested": "Gaming Mode restart requested",
+        "already_running": "Sunshine was already running",
+        "running": "Sunshine reported running",
+        "revoked": "This client's access was revoked"
+      },
+      restore_states: {
+        "dispatched": "Restore in progress",
+        "succeeded": "Previous screen restored",
+        "failed": "Previous screen not restored",
+        "unknown": "Restore result not confirmed"
+      }
+    }
+  }
+
+  function journalNote() {
+    return "Entries record what the host did and read back. A completed entry does not by itself show that the picture is visible."
+  }
+
+  function journalUnavailableText() {
+    return "The host journal is not available from this device."
+  }
+
+  // Ten rows, not Decky's twenty: this group sits in Settings above the display
+  // preferences and the credential controls, and every row adds roughly 75
+  // pixels above them.
+  function journalRowLimit() {
+    return 10
+  }
+
+  function journalMinGapMs() {
+    return 5000
+  }
+
+  // Two reads, entry or refresh, are never closer than the gap. A clock that
+  // moved far backwards must not keep the read shut; a small step back (the
+  // shared clock the button reads lags by up to a second) must not reopen it.
+  function journalMayRead(lastMs, nowMs) {
+    if (typeof nowMs !== "number" || !isFinite(nowMs)) return false
+    if (typeof lastMs !== "number" || !isFinite(lastMs) || lastMs <= 0) return true
+    var elapsed = nowMs - lastMs
+    return elapsed >= journalMinGapMs() || elapsed < -journalMinGapMs()
+  }
+
+  // Control, format and line-separator characters (C0 and C1 controls, soft
+  // hyphen, Arabic letter mark, zero-width and bidirectional marks, line and
+  // paragraph separators, word joiners, the byte order mark and the
+  // interlinear annotation marks) are dropped, never kept. Written as code
+  // points rather than escapes so the source carries no invisible character.
+  function journalPrintable(code) {
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return false
+    if (code === 0xad || code === 0x61c || code === 0xfeff) return false
+    if (code >= 0x200b && code <= 0x200f) return false
+    if (code >= 0x2028 && code <= 0x202e) return false
+    if (code >= 0x2060 && code <= 0x206f) return false
+    return code < 0xfff9 || code > 0xfffb
+  }
+
+  // The rest is cut at the limit without leaving half a surrogate pair. The
+  // loop stops at the limit, so a huge string costs no more than a short one.
+  function journalText(value, limit) {
+    if (typeof value !== "string") return ""
+    var text = ""
+    for (var index = 0; index < value.length && text.length < limit; index++) {
+      if (journalPrintable(value.charCodeAt(index))) text += value.charAt(index)
+    }
+    var last = text.charCodeAt(text.length - 1)
+    if (last >= 0xd800 && last <= 0xdbff) text = text.slice(0, -1)
+    return text.trim()
+  }
+
+  function journalClip(text, limit) {
+    return text.length > limit ? text.slice(0, limit - 1) + "…" : text
+  }
+
+  function journalWord(table, code) {
+    if (typeof code !== "string" || code === "") return ""
+    return Object.prototype.hasOwnProperty.call(table, code) ? table[code] : journalText(code, 64)
+  }
+
+  function journalInteger(value) {
+    return typeof value === "number" && isFinite(value) && Math.floor(value) === value
+  }
+
+  // One request fact: a scalar, a short list, or one level of scalars. Depth is
+  // bounded here too, whatever the helper already did.
+  function journalValue(value, depth) {
+    if (typeof value === "string") return journalText(value, 128)
+    if (typeof value === "boolean") return value ? "true" : "false"
+    if (typeof value === "number") return isFinite(value) ? String(value) : ""
+    if (value === null || typeof value !== "object" || depth >= 2) return ""
+    var parts = []
+    if (Array.isArray(value)) {
+      for (var index = 0; index < value.length && index < 16; index++) {
+        var entry = journalValue(value[index], depth + 1)
+        if (entry !== "") parts.push(entry)
+      }
+      return parts.join(", ")
+    }
+    if (journalInteger(value.width) && journalInteger(value.height)) {
+      var rate = typeof value.refresh_hz === "number" && isFinite(value.refresh_hz) ? "@" + Math.round(value.refresh_hz * 100) / 100 : ""
+      return value.width + "x" + value.height + rate
+    }
+    var keys = Object.keys(value).slice(0, 6)
+    for (var at = 0; at < keys.length; at++) {
+      var inner = journalValue(value[keys[at]], depth + 1)
+      var name = journalText(keys[at], 40).replace(/_/g, " ")
+      if (inner !== "" && name !== "") parts.push(name + " " + inner)
+    }
+    return parts.join(", ")
+  }
+
+  function journalRequested(target) {
+    if (target === null || typeof target !== "object" || Array.isArray(target)) return ""
+    var keys = Object.keys(target).slice(0, 8)
+    var parts = []
+    for (var index = 0; index < keys.length; index++) {
+      var value = journalValue(target[keys[index]], 0)
+      var name = journalText(keys[index], 40).replace(/_/g, " ")
+      if (value !== "" && name !== "") parts.push(name + ": " + value)
+    }
+    return journalClip(parts.join(" · "), 360)
+  }
+
+  // The host writes UTC `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`; anything else is not shown.
+  function journalTime(value) {
+    var found = typeof value === "string" ? /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.\d{1,9})?Z$/.exec(value) : null
+    return found ? found[1] + " " + found[2] + " UTC" : ""
+  }
+
+  function journalRows(operations) {
+    if (!Array.isArray(operations)) return []
+    var words = journalVocabulary()
+    var rows = []
+    for (var index = 0; index < operations.length && index < 256 && rows.length < journalRowLimit(); index++) {
+      var item = operations[index]
+      if (item === null || typeof item !== "object" || Array.isArray(item)) continue
+      var id = journalText(item.id, 128)
+      if (id === "") continue
+      var kind = journalWord(words.kinds, item.kind) || "Operation"
+      var state = journalWord(words.states, item.state) || "State unknown"
+      var lines = []
+      var requested = journalRequested(item.target)
+      if (requested !== "") lines.push("Requested · " + requested)
+      var outcome = journalWord(words.outcomes, item.outcome)
+      if (outcome !== "") lines.push("Recorded · " + outcome)
+      var restore = journalWord(words.restore_states, item.restore_state)
+      if (restore !== "") lines.push(restore)
+      var reason = journalText(item.reason, 256)
+      if (reason !== "") lines.push("Reason · " + reason)
+      var time = journalTime(item.updated_at)
+      if (time !== "") lines.push("Updated · " + time)
+      rows.push({id: id, title: kind + " · " + state, lines: lines})
+    }
+    return rows
+  }
+
+  // The helper answers {ok, data: {available, operations, total}}. Anything
+  // else, an error included, is not available.
+  function journalFromResult(result) {
+    var data = result && result.ok === true ? result.data : null
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null
+    return data.available === true && Array.isArray(data.operations) ? data : null
+  }
+
+  function journalEmptyModel(state, message) {
+    return {state: state, message: message, rows: [], more: "", note: ""}
+  }
+
+  // Everything the group shows for one state: a message in place of rows, the
+  // rows, the truncation line, and the standing note once there is a list.
+  function journalModel(state, data) {
+    if (state === "loading") return journalEmptyModel("loading", "Loading the host journal…")
+    if (state === "unavailable") return journalEmptyModel("unavailable", journalUnavailableText())
+    if (state !== "ready") return journalEmptyModel("idle", "Not read yet. Choose Refresh journal to read it.")
+    var operations = data && Array.isArray(data.operations) ? data.operations : null
+    if (!operations) return journalEmptyModel("unavailable", journalUnavailableText())
+    var rows = journalRows(operations)
+    var total = journalInteger(data.total) && data.total >= operations.length ? data.total : operations.length
+    return {
+      state: "ready",
+      message: rows.length > 0 ? "" : operations.length === 0 ? "The host has recorded no operations for this device yet." : "No entries could be shown.",
+      rows: rows,
+      more: rows.length > 0 && rows.length < total ? "Showing the newest " + rows.length + " of " + total + "." : "",
+      note: journalNote()
+    }
+  }
+  // journal:end
+
+  // One read when Settings opens and one per explicit Refresh, spaced by
+  // journalMayRead. It rides the poll lane, so it never disables a control, is
+  // dropped with the panel, and is never repeated by a timer. Whatever the
+  // helper answers, a failure included, only ever becomes "not available".
+  function requestJournal() {
+    if (!root.opened || !root.paired || root.view !== "settings") return
+    var now = Date.now()
+    if (!root.journalMayRead(root.journalStartedMs, now)) return
+    root.journalStartedMs = now
+    root.journalState = "loading"
+    root.journalData = null
+    var epoch = root.journalEpoch
+    enqueueHelper("journal", {timeout: 2.5}, function(result) {
+      // The panel closed, or another host was paired, while this was in flight.
+      if (epoch !== root.journalEpoch) return
+      var data = root.journalFromResult(result)
+      root.journalData = data
+      root.journalState = data ? "ready" : "unavailable"
+    }, true)
+  }
+
+  // The records are kept in memory for the open panel and the paired host only.
+  function resetJournal() {
+    root.journalEpoch++
+    root.journalState = "idle"
+    root.journalData = null
+    root.journalStartedMs = 0
+  }
+
+  function syncJournalIdentity() {
+    var identity = root.paired ? String(root.localData.host_id || "") + "|" + String(root.localData.endpoint || "") : ""
+    if (identity === root.journalIdentity) return
+    root.journalIdentity = identity
+    root.resetJournal()
   }
 
   function sunshineVisible() {
@@ -2237,6 +2538,7 @@ Panel {
     if (!keepOperation) operationData = null
     operationPolls = 0
     pollIntervalMs = 2000
+    root.resetJournal()
     localInspect()
   }
 
@@ -2245,6 +2547,7 @@ Panel {
     editingPairing = false
     confirmationKind = ""
     root.saveCurrentTarget = null
+    root.resetJournal()
     root.helperQueue = root.helperQueue.filter(function(job) { return job.poll !== true })
   }
 
@@ -3171,6 +3474,70 @@ Panel {
             width: parent.width
             text: row ? (row.state ? root.selfCheckGlyph(row.state) + " " : "") + row.label + ": " + row.value : ""
           }
+        }
+      }
+
+      // The host journal: what the host recorded about operations. It shows
+      // what the last read returned and asks the host for nothing itself; the
+      // Refresh row is the one place the owner asks again. A completed entry is
+      // never worded as a visible picture (see the journal block above).
+      Column {
+        id: journalGroup
+        visible: root.paired
+        width: parent.width
+        spacing: Style.space(4)
+
+        readonly property var journalView: root.journalModel(root.journalState, root.journalData)
+
+        PanelSectionHeader { text: "Host journal"; width: parent.width }
+        HintText {
+          width: parent.width
+          text: "What the host recorded for this device, and the Deck's own display entries. Read when Settings opens and when you refresh, never in the background."
+        }
+        CursorButton {
+          width: parent.width
+          ownerView: "settings"
+          rowKey: "journal"
+          text: root.journalState === "loading" ? "Refreshing…" : "Refresh journal"
+          iconText: "↻"
+          onClicked: root.requestJournal()
+        }
+        HintText {
+          visible: journalGroup.journalView.message !== ""
+          width: parent.width
+          text: journalGroup.journalView.message
+        }
+        Repeater {
+          model: journalGroup.journalView.rows
+          delegate: Column {
+            required property var modelData
+            width: parent.width
+            spacing: Style.space(2)
+            BodyText {
+              width: parent.width
+              wrapMode: Text.WrapAnywhere
+              text: modelData.title
+            }
+            Repeater {
+              model: modelData.lines
+              delegate: HintText {
+                required property string modelData
+                width: parent.width
+                wrapMode: Text.WrapAnywhere
+                text: modelData
+              }
+            }
+          }
+        }
+        HintText {
+          visible: journalGroup.journalView.more !== ""
+          width: parent.width
+          text: journalGroup.journalView.more
+        }
+        HintText {
+          visible: journalGroup.journalView.note !== ""
+          width: parent.width
+          text: journalGroup.journalView.note
         }
       }
 

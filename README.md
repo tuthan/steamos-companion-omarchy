@@ -64,6 +64,16 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
    it omits may still work. **Settings → Connection details → Link facts** names
    the connector behind the display. An older host gets no advisory, and the
    group says the facts are not available.
+7. **Settings → Connection details → Host journal** lists the newest operations
+   the host recorded for this device, plus the Deck's own display entries, in
+   the shared wording of `protocol/operation-vocabulary.json`: what was
+   requested, what the host recorded, and when. It is read when Settings opens
+   and when you choose **Refresh journal** (no sooner than five seconds after the
+   last read), never in the background and never while the panel is closed, and
+   it is not stored. An entry records what the host did and read back: a
+   completed entry does not by itself show that the picture is visible. A host
+   that predates the route, or any failure, shows "The host journal is not
+   available from this device." and changes nothing else.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled
@@ -87,6 +97,8 @@ second credential store. Global output flags go before the command.
 ./steamos-companion-ctl --json outputs
 ./steamos-companion-ctl --json display link-facts
 ./steamos-companion-ctl --json display save-current --output-id OUTPUT_ID --generation GENERATION
+./steamos-companion-ctl --json journal list
+./steamos-companion-ctl --json journal view
 ./steamos-companion-ctl --json journal get OPERATION_ID
 ```
 
@@ -101,6 +113,16 @@ output. Errors are emitted as a JSON object by default.
 implement the pinned `v0.5.16` protocol can still serve `journal get`, but need
 the matching host update before the list command is available. A 404 means the
 host build does not expose the list route; it is not acceptance evidence.
+
+`journal view` reads the same bounded journal the panel shows: each record is
+rebuilt from an allowlist (no `request_id`, no unknown fields), text loses its
+control characters, and only the newest 64 of at most 256 records are kept, with
+`total`, `truncated` and `dropped` counts. A host without the route, or a reply
+that is not a bounded list, is reported as `"available": false` with an
+`unavailable` reason and exit 0. `journal list` is unchanged and prints the
+host's list as it came; it keeps the client's generic response budget, so a very
+long journal (well over a hundred records) is refused as too complex there, and
+`journal view` is the bounded way to read it.
 
 `display link-facts` reads the advisory DRM connector facts (resolutions only).
 A host without the route, or one that answers badly, is reported as

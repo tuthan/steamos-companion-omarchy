@@ -18,6 +18,7 @@ import socket
 import ssl
 import stat
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -65,6 +66,16 @@ LINK_CONNECTOR_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
 LINK_GPU_RE = re.compile(r"^drm:card[0-9]{1,4}$")
 LINK_VENDOR_RE = re.compile(r"^[A-Z]{3}$")
 LINK_RESOLUTION_RE = re.compile(r"^[1-9][0-9]{0,4}x[1-9][0-9]{0,4}$")
+# Operation journal (`GET /v1/operations`), bounded as `properties.operations`
+# and `$defs/operation` in the schema. A reply longer than the schema allows is
+# refused; of a legitimate one only the newest records are forwarded.
+JOURNAL_MAX_WIRE_RECORDS = 256
+JOURNAL_MAX_RECORDS = 64
+JOURNAL_TARGET_MAX_KEYS = 8
+JOURNAL_TARGET_MAX_LIST = 16
+JOURNAL_TARGET_MAX_NESTED = 6
+JOURNAL_TEXT_LIMITS = (("created_at", 64), ("updated_at", 64), ("outcome", 128), ("reason", 256), ("restore_state", 64), ("resolved_by", 128))
+JOURNAL_VALUE_LIMIT = 128
 OPERATION_STATES = frozenset({"accepted", "dispatched", "observed_return", "succeeded", "failed", "unknown"})
 
 
@@ -761,6 +772,108 @@ def _optional_link_facts(value: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _journal_printable(char: str) -> bool:
+    category = unicodedata.category(char)
+    return category[0] != "C" and category not in {"Zl", "Zp"}
+
+
+def _journal_text(value: Any, limit: int) -> str | None:
+    """Printable text up to `limit` characters, or None.
+
+    Control, format and line-separator characters are removed rather than kept,
+    so nothing the host wrote can move a cursor, reorder text, or end a line in
+    whatever the panel or the CLI prints.
+    """
+    if not isinstance(value, str):
+        return None
+    kept = "".join(ch for ch in value if _journal_printable(ch))
+    return kept.strip()[:limit] or None
+
+
+def _journal_scalar(value: Any) -> bool | int | float | str | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value if abs(value) < 2 ** 53 else None
+    if isinstance(value, float):
+        return value if math.isfinite(value) and abs(value) < 2 ** 53 else None
+    return _journal_text(value, JOURNAL_VALUE_LIMIT)
+
+
+def _journal_target_value(value: Any) -> Any:
+    """One request fact: a scalar, a short list of strings, or one level of scalars."""
+    if isinstance(value, list):
+        if not 0 < len(value) <= JOURNAL_TARGET_MAX_LIST:
+            return None
+        texts = [_journal_text(entry, JOURNAL_VALUE_LIMIT) for entry in value]
+        return texts if all(entry is not None for entry in texts) else None
+    if isinstance(value, dict):
+        nested: dict[str, Any] = {}
+        for key, entry in value.items():
+            if len(nested) >= JOURNAL_TARGET_MAX_NESTED:
+                break
+            scalar = _journal_scalar(entry) if isinstance(key, str) and ID_RE.fullmatch(key) else None
+            if scalar is not None:
+                nested[key] = scalar
+        return nested or None
+    return _journal_scalar(value)
+
+
+def _journal_target(value: Any) -> dict[str, Any] | None:
+    """What the host says was requested, bounded to eight facts, or None."""
+    if not isinstance(value, dict):
+        return None
+    target: dict[str, Any] = {}
+    for key, item in value.items():
+        if len(target) >= JOURNAL_TARGET_MAX_KEYS:
+            break
+        fact = _journal_target_value(item) if isinstance(key, str) and ID_RE.fullmatch(key) else None
+        if fact is not None:
+            target[key] = fact
+    return target or None
+
+
+def _journal_record(value: Any) -> dict[str, Any] | None:
+    """One record, rebuilt from the allowlisted fields or dropped.
+
+    The identity tokens are the only fields a record cannot lack. An unknown
+    kind or state is still a token and is kept: the panel shows it as text
+    rather than hiding a record the host chose to write.
+    """
+    if not isinstance(value, dict):
+        return None
+    identity = [value.get(key) for key in ("id", "kind", "state")]
+    if not all(isinstance(item, str) and ID_RE.fullmatch(item) for item in identity):
+        return None
+    record: dict[str, Any] = dict(zip(("id", "kind", "state"), identity))
+    for key, limit in JOURNAL_TEXT_LIMITS:
+        record[key] = _journal_text(value.get(key), limit)
+    record["restored"] = value["restored"] if isinstance(value.get("restored"), bool) else None
+    record["target"] = _journal_target(value.get("target"))
+    return record
+
+
+def _journal_view(body: Any) -> dict[str, Any] | None:
+    """The panel's view of a journal reply, or None when the reply is malformed.
+
+    Only allowlisted fields of the newest records are forwarded. A record that
+    fails is dropped and counted, because the other records stay true; a reply
+    that is not a list, or longer than the schema allows, is refused whole.
+    """
+    raw = body.get("operations") if isinstance(body, dict) else None
+    if not isinstance(raw, list) or len(raw) > JOURNAL_MAX_WIRE_RECORDS:
+        return None
+    records = [record for record in map(_journal_record, raw) if record is not None]
+    return {
+        "protocol_version": PROTOCOL_VERSION,
+        "available": True,
+        "operations": records[:JOURNAL_MAX_RECORDS],
+        "total": len(records),
+        "truncated": len(records) > JOURNAL_MAX_RECORDS,
+        "dropped": len(raw) - len(records),
+    }
+
+
 class PinnedTransport:
     def __init__(self, endpoint: str, pin: str, token: str | None = None, timeout: float = 5.0):
         self.endpoint = validate_endpoint(endpoint)
@@ -768,9 +881,13 @@ class PinnedTransport:
         self.token = token
         self.timeout = max(1.0, min(float(timeout), 10.0))
 
-    def request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    def request(self, method: str, path: str, body: dict[str, Any] | None = None, *, budget: bool = True) -> dict[str, Any]:
         method = method.upper()
         if method not in {"GET", "POST"} or not PATH_RE.fullmatch(path):
+            raise ClientError("route is not allowed")
+        # The journal list is the one reply that may legitimately outgrow the
+        # generic node budget; its reader rebuilds it under its own bounds.
+        if not budget and (method, path) != ("GET", "/v1/operations"):
             raise ClientError("route is not allowed")
         if method == "GET" and body:
             raise ClientError("GET does not accept a body")
@@ -851,7 +968,8 @@ class PinnedTransport:
                 return _optional_link_facts(value)
             if path == "/v1/status":
                 value = _optional_self_check(value)
-            validate_response_limits(value)
+            if budget:
+                validate_response_limits(value)
             return value
         except ClientError as exc:
             if method == "POST" and exc.status is None:
@@ -1293,6 +1411,37 @@ class ClientCore:
         result["drm"] = response["drm"]
         return result
 
+    @staticmethod
+    def _journal(transport: Any) -> dict[str, Any]:
+        """Read the host operation journal for the panel; nothing it answers is an error.
+
+        The journal is diagnostics. A 404 from a host that predates the route, a
+        refusal, a transport failure, or a reply that is not a bounded list all
+        mean the same thing, "not available", and none of them raises, so
+        reading it cannot change connection state. The reason is a fixed word;
+        host text is never passed along.
+        """
+        result: dict[str, Any] = {
+            "protocol_version": PROTOCOL_VERSION,
+            "available": False,
+            "operations": [],
+            "total": 0,
+            "truncated": False,
+            "dropped": 0,
+        }
+        try:
+            view = _journal_view(transport().request("GET", "/v1/operations", budget=False))
+        except ClientError as exc:
+            result["unavailable"] = "not_found" if exc.status == 404 else "error"
+            return result
+        except Exception:
+            result["unavailable"] = "error"
+            return result
+        if view is None:
+            result["unavailable"] = "invalid"
+            return result
+        return view
+
     def request(self, action: str, arguments: dict[str, Any]) -> dict[str, Any]:
         state = self.store.load()
         timeout = self._timeout(arguments.get("timeout"))
@@ -1310,6 +1459,8 @@ class ClientCore:
             return transport().request("GET", "/v1/display/order")
         if action == "link-facts":
             return self._link_facts(transport)
+        if action == "journal":
+            return self._journal(transport)
         if action == "operations":
             return transport().request("GET", "/v1/operations")
         if action == "operation":
