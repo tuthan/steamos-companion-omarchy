@@ -219,6 +219,17 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   presentation functions are plain JavaScript between the `journal` markers in
   `Panel.qml` so `tests/test_journal.py` can run them against the pinned
   fixtures.
+- The diagnostic report is a command, not a panel surface: `steamos-companion-ctl
+  diagnostics` is the only way to produce it, because the panel has no export
+  or clipboard path. It is built from the raw replies, not from the panel's
+  allowlisted views, by the pure `client/diagnostics.py`, which
+  `tests/test_diagnostics.py` proves against the pinned cross-client vector. It
+  adds no route: one read each of status, outputs, link facts and operations,
+  none retried, none on a timer, none written to state. The journal read keeps
+  the generic node budget off and the link-facts read skips the panel's
+  rebuild, each in the one function that reads that route. `inspect` stays a
+  local debugging tool and says so in the README; only `diagnostics` is meant
+  for an issue.
 - Multiple monitors may instantiate the widget, but the server-side
   `request_id` and host mutation lane prevent duplicate remote mutations.
 

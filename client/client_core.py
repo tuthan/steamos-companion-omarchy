@@ -19,9 +19,15 @@ import ssl
 import stat
 import time
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+try:
+    from .diagnostics import build_report
+except ImportError:  # the QML helper runs this file as a top-level script
+    from diagnostics import build_report
 
 
 PROTOCOL_VERSION = 1
@@ -77,6 +83,10 @@ JOURNAL_TARGET_MAX_NESTED = 6
 JOURNAL_TEXT_LIMITS = (("created_at", 64), ("updated_at", 64), ("outcome", 128), ("reason", 256), ("restore_state", 64), ("resolved_by", 128))
 JOURNAL_VALUE_LIMIT = 128
 OPERATION_STATES = frozenset({"accepted", "dispatched", "observed_return", "succeeded", "failed", "unknown"})
+# `steamos-companion-ctl diagnostics`: the document a person may paste into an issue.
+DIAGNOSTICS_FORMAT = "steamos-companion-omarchy-diagnostics-v1"
+CLIENT_VERSION_RE = re.compile(r"^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}(?:[-+][0-9A-Za-z.-]{1,16})?$")
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "manifest.json"
 
 
 class ClientError(RuntimeError):
@@ -881,13 +891,17 @@ class PinnedTransport:
         self.token = token
         self.timeout = max(1.0, min(float(timeout), 10.0))
 
-    def request(self, method: str, path: str, body: dict[str, Any] | None = None, *, budget: bool = True) -> dict[str, Any]:
+    def request(self, method: str, path: str, body: dict[str, Any] | None = None, *, budget: bool = True, decode: bool = True) -> dict[str, Any]:
         method = method.upper()
         if method not in {"GET", "POST"} or not PATH_RE.fullmatch(path):
             raise ClientError("route is not allowed")
         # The journal list is the one reply that may legitimately outgrow the
         # generic node budget; its reader rebuilds it under its own bounds.
         if not budget and (method, path) != ("GET", "/v1/operations"):
+            raise ClientError("route is not allowed")
+        # The DRM reply is normally rebuilt from an allowlist for the panel. Only
+        # the diagnostic report reads it undecoded, and rebuilds it by its own rules.
+        if not decode and (method, path) != ("GET", "/v1/drm"):
             raise ClientError("route is not allowed")
         if method == "GET" and body:
             raise ClientError("GET does not accept a body")
@@ -965,7 +979,7 @@ class PinnedTransport:
             if value.get("protocol_version") != PROTOCOL_VERSION:
                 raise ClientError("host protocol version is unsupported")
             if path == "/v1/drm":
-                return _optional_link_facts(value)
+                return _optional_link_facts(value) if decode else value
             if path == "/v1/status":
                 value = _optional_self_check(value)
             if budget:
@@ -979,6 +993,21 @@ class PinnedTransport:
             raise ClientError(f"host connection failed: {_bounded(exc)}", unknown=method == "POST") from exc
         finally:
             connection.close()
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _client_version() -> str | None:
+    """The plugin version from the manifest next to this client, or None when unreadable."""
+    try:
+        with open(MANIFEST_PATH, "rb") as handle:
+            raw = handle.read(MAX_STATE_BYTES + 1)
+        version = json.loads(raw.decode("utf-8")).get("version") if len(raw) <= MAX_STATE_BYTES else None
+    except (OSError, ValueError, AttributeError, RecursionError):
+        return None
+    return version if isinstance(version, str) and CLIENT_VERSION_RE.fullmatch(version) else None
 
 
 def _new_request_id(value: Any = None) -> str:
@@ -1388,6 +1417,16 @@ class ClientCore:
         self.store.save(state)
 
     @staticmethod
+    def _drm_read(transport: Any, *, decode: bool = True) -> dict[str, Any]:
+        """The one place that reads `GET /v1/drm`: rebuilt for the panel, undecoded for the report."""
+        return transport().request("GET", "/v1/drm", decode=decode)
+
+    @staticmethod
+    def _operations_read(transport: Any) -> dict[str, Any]:
+        """The one place the generic node budget is off: a journal list may legitimately outgrow it."""
+        return transport().request("GET", "/v1/operations", budget=False)
+
+    @staticmethod
     def _link_facts(transport: Any) -> dict[str, Any]:
         """Read the advisory DRM link facts; nothing the host answers is an error.
 
@@ -1398,7 +1437,7 @@ class ClientCore:
         """
         result: dict[str, Any] = {"protocol_version": PROTOCOL_VERSION, "drm": None}
         try:
-            response = transport().request("GET", "/v1/drm")
+            response = ClientCore._drm_read(transport)
         except ClientError as exc:
             result["unavailable"] = "not_found" if exc.status == 404 else "error"
             return result
@@ -1430,7 +1469,7 @@ class ClientCore:
             "dropped": 0,
         }
         try:
-            view = _journal_view(transport().request("GET", "/v1/operations", budget=False))
+            view = _journal_view(ClientCore._operations_read(transport))
         except ClientError as exc:
             result["unavailable"] = "not_found" if exc.status == 404 else "error"
             return result
@@ -1564,6 +1603,49 @@ class ClientCore:
             "pending_operation": state.get("pending_operation"),
         }
 
+    def diagnostics(self, timeout: Any = None) -> dict[str, Any]:
+        """A document that is safe to paste into an issue, unlike `inspect`.
+
+        Four read-only GETs, one per route and in this order: status, display
+        outputs, link facts, operations. None is retried and none is required:
+        a read that fails in any way leaves its report section null. The bodies
+        go straight into the pure report composer, which names facts and copies
+        no record. Nothing is written, so unlike a status poll this does not
+        refresh the saved Wake-on-LAN target. `local` holds only counts and
+        flags: no endpoint, host or client identity, pin, MAC, interface or token.
+        """
+        state = self.store.load(required=False)
+        seconds = self._timeout(timeout)
+        bodies: dict[str, Any] = {}
+        if state is not None:
+            def transport() -> PinnedTransport:
+                return PinnedTransport(state["endpoint"], state["certificate_fingerprint"], state["token"], timeout=seconds)
+
+            reads = (
+                ("status", lambda: transport().request("GET", "/v1/status")),
+                ("outputs", lambda: transport().request("GET", "/v1/display/outputs")),
+                ("drm", lambda: self._drm_read(transport, decode=False)),
+                ("operations", lambda: self._operations_read(transport)),
+            )
+            for name, read in reads:
+                try:
+                    bodies[name] = read()
+                except Exception:  # a section that cannot be read is null, never an error
+                    bodies[name] = None
+        paired = state is not None
+        return {
+            "format": DIAGNOSTICS_FORMAT,
+            "generated_at": _utc_now(),
+            "client": {"app": "omarchy", "version": _client_version()},
+            "local": {
+                "paired": paired,
+                "scopes": [scope for scope in state["scopes"] if scope in ALLOWED_SCOPES] if paired else [],
+                "wake_configured": paired and bool(state.get("wake_mac")),
+                "pending_operation_present": paired and isinstance(state.get("pending_operation"), dict),
+            },
+            "report": build_report(**bodies),
+        }
+
     def _remember_wake_target(self, response: dict[str, Any]) -> None:
         mac, host_interface, local_interface = _wake_target_details(response.get("wake_target"))
         if not mac:
@@ -1630,6 +1712,8 @@ class ClientCore:
             return self.configure_endpoint(request.get("endpoint"))
         if action == "inspect":
             return self.inspect()
+        if action == "diagnostics":
+            return self.diagnostics(request.get("timeout"))
         if action == "configure-wake":
             return self.configure_wake(request.get("mac"), request.get("interface"))
         if action == "configure-display":

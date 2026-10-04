@@ -93,6 +93,7 @@ second credential store. Global output flags go before the command.
 ./steamos-companion-ctl --json pair start --host https://HOST-IP:PORT
 ./steamos-companion-ctl --json pair poll
 ./steamos-companion-ctl --json inspect
+./steamos-companion-ctl --json diagnostics
 ./steamos-companion-ctl --json status
 ./steamos-companion-ctl --json outputs
 ./steamos-companion-ctl --json display link-facts
@@ -128,6 +129,27 @@ long journal (well over a hundred records) is refused as too complex there, and
 A host without the route, or one that answers badly, is reported as
 `"drm": null` with an `unavailable` reason and exit 0, because the facts only
 ever feed a warning.
+
+`inspect` output is not for sharing: it prints the host endpoint, host and client IDs and the wake MAC, so use `diagnostics` for anything you paste into an issue.
+
+`diagnostics` prints a redacted report of the paired host. It reads status, the
+display inventory, the link facts and the operation journal once each, with the
+same pinned transport and no retry, timer or write (unlike a status poll it does
+not refresh the saved wake target), and rebuilds only named facts from those
+replies by the shared "Diagnostic report" rules in `protocol/README.md`. No MAC,
+certificate pin, host or boot ID, address, token, EDID or serial, and no
+operation, request, preview or profile ID is copied. Free text (display names,
+reasons) loses URLs, pins, MACs, IP addresses, absolute paths and long tokens
+and is bounded, and the report stays within 12 KiB by dropping the oldest
+journal records first. A route the host does not offer, or any failed read,
+leaves that section `null`, which is not the same as an empty one, and the exit
+code stays 0. The output is `{"format": "steamos-companion-omarchy-diagnostics-v1",
+"generated_at", "client", "local", "report"}` inside the usual `ok`/`data`
+object. `client` is the app and its manifest version; `local` is only `paired`,
+`scopes`, `wake_configured` and `pending_operation_present`, with no endpoint,
+identity, pin, MAC, interface or token. Unpaired, it opens no connection and
+every report section is `null`. The panel has no export surface: nothing is
+sent anywhere, so read the output before you post it.
 
 The wrapper is included in the plugin checkout but is not installed as a
 system-wide command by the plugin manager.

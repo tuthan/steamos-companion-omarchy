@@ -97,6 +97,7 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("status", help="read host status once")
     commands.add_parser("outputs", help="read the display inventory and saved profiles")
     commands.add_parser("inspect", help="show local pairing state without credentials")
+    commands.add_parser("diagnostics", help="print a redacted report that is safe to paste into an issue")
 
     display = commands.add_parser("display", help="display recovery and output-order commands")
     display_commands = display.add_subparsers(dest="display_command", required=True)
@@ -208,6 +209,8 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
         return core.run({"action": "outputs"})
     if command == "inspect":
         return core.run({"action": "inspect"})
+    if command == "diagnostics":
+        return core.run({"action": "diagnostics"})
     if command == "display":
         action = args.display_command
         if action == "save-current":

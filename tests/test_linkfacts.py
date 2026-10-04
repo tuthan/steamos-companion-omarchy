@@ -265,8 +265,9 @@ class LinkFactsTransportTests(unittest.TestCase):
         with self.assertRaises(client_core.ClientError):
             client_core.PinnedTransport("https://steam-host.example:18443", PIN, "token").request("GET", "/v1/drm", {"a": 1})
         source = (ROOT / "client" / "client_core.py").read_text()
-        # One route string in the transport's own branch and one in the single reader.
-        self.assertEqual(source.count('"/v1/drm"'), 2)
+        # Two route strings in the transport (the undecoded-read guard and the decode branch) and one in the single reader,
+        # which serves the panel's rebuild and, undecoded, the diagnostic report.
+        self.assertEqual(source.count('"/v1/drm"'), 3)
         self.assertEqual(source.count('"link-facts"'), 1)
 
     def test_a_malformed_or_oversized_block_is_dropped_and_never_fails_the_read(self):
