@@ -16,6 +16,9 @@ Panel {
 
   // ---- client and host state -------------------------------------------
   property var localData: ({paired: false})
+  // What the last status read said the host allows this pairing, or null until
+  // it has said. heldScopes() prefers it to the scopes saved with the pairing.
+  property var reportedScopes: null
   property var statusData: null
   property var outputsData: null
   property string outputsSignature: ""
@@ -403,7 +406,7 @@ Panel {
 
   function displayOrderCanEdit() {
     var block = root.displayOrderBlock(root.displayOrderData)
-    return root.paired && !!block && block.available === true && block.unsupported !== true
+    return root.paired && root.displayAllowed() && !!block && block.available === true && block.unsupported !== true
       && block.stale !== true && block.ambiguous !== true && !root.displayOrderDraftStale
       && root.displayOrderError === "" && !root.displayOrderRefreshRequested
       && root.displayOrderDraft.length > 0 && root.displayOrderMutation === ""
@@ -701,7 +704,12 @@ Panel {
   }
 
   function remote(action, args, callback) {
-    enqueueHelper(action, args || {}, callback || function() {}, false)
+    enqueueHelper(action, args || {}, function(result) {
+      // The owner changed this pairing since the last status read. The helper has
+      // already saved the new scopes; read status now so the controls follow them.
+      if (result && result.ok === false && result.status === 403) root.refresh()
+      if (callback) callback(result)
+    }, false)
   }
 
   // ---- polling -----------------------------------------------------------
@@ -710,12 +718,14 @@ Panel {
     enqueueHelper("inspect", {}, function(result) {
       if (!result.ok) {
         root.localData = {paired: false}
+        root.reportedScopes = null
         root.syncLinkFactsIdentity()
         root.syncJournalIdentity()
         root.actionMessage = friendlyError(result.error)
         return
       }
       root.localData = result.data || {paired: false}
+      root.reportedScopes = null
       root.syncLinkFactsIdentity()
       root.syncJournalIdentity()
       root.pendingPairing = root.localData.pending_pairing || null
@@ -758,6 +768,7 @@ Panel {
       root.connectionState = "ok"
       root.connectionDetail = ""
       root.statusData = result.data
+      root.adoptScopes(result.data)
       var advertisedWake = result.data && result.data.wake_target
       if (advertisedWake && advertisedWake.mac) {
         root.wakeMac = advertisedWake.mac
@@ -1076,12 +1087,12 @@ Panel {
   function rowEnabled(key) {
     if (!key) return false
     if (view === "host") {
-      if (key === "restore") return root.canRestoreWorking() && !root.actionBusy
+      if (key === "restore") return root.canRestoreWorking() && root.displayAllowed() && !root.actionBusy
       if (key === "wake") return root.paired && !!root.wakeMac && !root.actionBusy
-      if (key === "suspend") return root.canSuspendHost() && !root.actionBusy
-      if (key === "restart") return root.paired && root.powerAvailable("restart") && !root.actionBusy
-      if (key === "shutdown") return root.paired && root.powerAvailable("shutdown") && !root.actionBusy
-      if (key === "sunshine") return root.sunshineRestartAvailable() && !root.actionBusy
+      if (key === "suspend") return root.canSuspendHost() && root.powerAllowed() && !root.actionBusy
+      if (key === "restart") return root.paired && root.powerAllowed() && root.powerAvailable("restart") && !root.actionBusy
+      if (key === "shutdown") return root.paired && root.powerAllowed() && root.powerAvailable("shutdown") && !root.actionBusy
+      if (key === "sunshine") return root.sunshineRestartAvailable() && root.powerAllowed() && !root.actionBusy
       return false
     }
     if (view === "display") {
@@ -1093,17 +1104,17 @@ Panel {
       if (key === "display-order:restart") return root.displayOrderRestartAvailable()
       if (key === "display-order:automatic") {
         var orderBlock = root.displayOrderBlock(root.displayOrderData)
-        return root.paired && !root.actionBusy && root.displayOrderMutation === ""
+        return root.paired && root.displayAllowed() && !root.actionBusy && root.displayOrderMutation === ""
           && !root.displayOrderRefreshRequested && root.displayOrderPendingKeys.length === 0 && !!orderBlock
           && (orderBlock.available === true || root.displayOrderSavedKeysFor(root.displayOrderData).length > 0)
       }
       if (key === "display-order:refresh") return root.paired && !root.actionBusy
         && root.displayOrderMutation === "" && !root.displayOrderRefreshRequested
       if (key === "output") return root.outputList.length > 1 && !root.previewData
-      if (key === "save-current") return root.paired && !!root.currentOutput
+      if (key === "save-current") return root.paired && root.displayAllowed() && !!root.currentOutput
         && !!root.currentOutput.current_mode_id && !root.previewData
         && !root.previewMutationBusy && !root.actionBusy
-      if (key === "restore") return root.paired && !root.previewData && !root.actionBusy
+      if (key === "restore") return root.paired && root.displayAllowed() && !root.previewData && !root.actionBusy
       return key.indexOf("mode:") === 0
     }
     if (key === "discover") return !root.actionBusy
@@ -1236,6 +1247,7 @@ Panel {
     var kind = confirmationKind
     confirmationKind = ""
     if (["suspend", "restart", "shutdown"].indexOf(kind) >= 0) {
+      if (!root.powerAllowed()) { root.actionMessage = root.powerReason(); return }
       remote("power", {action: kind}, function(result) {
         if (!result.ok) root.actionMessage = friendlyError(result.error)
         else {
@@ -1269,6 +1281,7 @@ Panel {
 
   function resetPairedState() {
     root.localData = {paired: false}
+    root.reportedScopes = null
     root.syncLinkFactsIdentity()
     root.syncJournalIdentity()
     root.statusData = null
@@ -1333,6 +1346,7 @@ Panel {
       root.actionMessage = "No current display mode is available to save"
       return
     }
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     if (root.previewData) {
       root.actionMessage = "Waiting for this preview to be kept or reverted"
       return
@@ -1343,6 +1357,7 @@ Panel {
 
   function saveCurrentDisplay(target) {
     if (!target || root.previewData || root.previewMutationBusy) return
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     root.previewMutationBusy = true
     root.actionMessage = "Save requested; checking the host read-back"
     remote("save-current", {
@@ -1400,6 +1415,7 @@ Panel {
 
   function restoreWorking() {
     if (!root.paired) { setView("settings"); actionMessage = "Pair the Omarchy client before restoring a display"; return }
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     remote("restore", {source: "verified"}, function(result) {
       if (!result.ok) root.actionMessage = friendlyError(result.error)
       else {
@@ -1952,6 +1968,116 @@ Panel {
   }
   // journal:end
 
+  // ---- what the owner of the host allows this pairing -------------------------
+  // Pure wording and checks, kept in step with Decky's accessRole, accessSummary
+  // and accessNote so both clients say the same thing the same way. The scopes
+  // come from the helper already decoded; this still reads them as untrusted:
+  // only the three grantable scopes count, and anything that is not a list holds
+  // nothing. tests/test_panel_access.py runs this block under Node against
+  // Decky's own, so keep it ES5 and free of QML properties.
+  // access:begin
+  function accessTable() {
+    return [
+      {scope: "status.read", label: "Status"},
+      {scope: "power.control", label: "Power"},
+      {scope: "display.control", label: "Display"}
+    ]
+  }
+
+  function accessHeld(scopes) {
+    var table = accessTable()
+    var held = []
+    if (!Array.isArray(scopes)) return held
+    for (var index = 0; index < table.length; index++) {
+      if (scopes.indexOf(table[index].scope) >= 0) held.push(table[index].scope)
+    }
+    return held
+  }
+
+  function accessSummary(scopes) {
+    var table = accessTable()
+    var held = accessHeld(scopes)
+    var labels = []
+    for (var index = 0; index < table.length; index++) {
+      if (held.indexOf(table[index].scope) >= 0) labels.push(table[index].label)
+    }
+    return labels.length > 0 ? labels.join(" · ") : "No permissions"
+  }
+
+  function accessRole(scopes) {
+    var held = accessHeld(scopes)
+    if (held.length === accessTable().length) return "Full access"
+    if (held.length === 0) return "No access"
+    return held.length === 1 && held[0] === "status.read" ? "View only" : "Custom"
+  }
+
+  function accessNote(scopes) {
+    return accessHeld(scopes).length === accessTable().length ? "" : "The owner of the host chose this and can change it there."
+  }
+
+  function accessLine(scopes) {
+    return accessRole(scopes) + " · " + accessSummary(scopes)
+  }
+
+  function accessAllows(scopes, scope) {
+    return accessHeld(scopes).indexOf(scope) >= 0
+  }
+
+  // "" only when the scope is held, so a caller can show the reason it returns.
+  function accessReason(scopes, scope) {
+    if (accessAllows(scopes, scope)) return ""
+    var table = accessTable()
+    var label = "this action"
+    for (var index = 0; index < table.length; index++) {
+      if (table[index].scope === scope) label = table[index].label
+    }
+    return "The host owner has not allowed " + label + " for this pairing."
+  }
+
+  // The scopes a status reply reports, or null when it does not say: no block, or
+  // one that is not an object holding a list. An empty list is a real answer.
+  function accessReported(status) {
+    if (!status || typeof status !== "object") return null
+    var block = status.credential
+    if (!block || typeof block !== "object" || !Array.isArray(block.scopes)) return null
+    return accessHeld(block.scopes)
+  }
+
+  function accessSame(left, right) {
+    return accessHeld(left).join(",") === accessHeld(right).join(",")
+  }
+  // access:end
+
+  // One source for every control and every action: what the pairing was last
+  // told it may do. The status poll replaces it (adoptScopes), the helper saved
+  // the same list, and a host that did not report leaves the saved one in place.
+  function heldScopes() {
+    if (!root.paired) return []
+    return root.reportedScopes !== null ? root.reportedScopes : root.localData.scopes
+  }
+
+  function powerAllowed() {
+    return root.accessAllows(root.heldScopes(), "power.control")
+  }
+
+  function displayAllowed() {
+    return root.accessAllows(root.heldScopes(), "display.control")
+  }
+
+  function powerReason() {
+    return root.paired ? root.accessReason(root.heldScopes(), "power.control") : ""
+  }
+
+  function displayReason() {
+    return root.paired ? root.accessReason(root.heldScopes(), "display.control") : ""
+  }
+
+  function adoptScopes(status) {
+    var reported = root.accessReported(status)
+    if (reported === null || root.accessSame(reported, root.heldScopes())) return
+    root.reportedScopes = reported
+  }
+
   // One read when Settings opens and one per explicit Refresh, spaced by
   // journalMayRead. It rides the poll lane, so it never disables a control, is
   // dropped with the panel, and is never repeated by a timer. Whatever the
@@ -2020,7 +2146,7 @@ Panel {
   }
 
   function restartSunshine() {
-    if (!root.sunshineRestartAvailable()) return
+    if (!root.sunshineRestartAvailable() || !root.powerAllowed()) return
     remote("sunshine-restart", {}, function(result) {
       if (!result.ok) root.actionMessage = friendlyError(result.error)
       else { operationData = result.data && result.data.operation; refreshAfterAction("Restart requested; waiting for a fresh provider observation") }
@@ -2093,7 +2219,7 @@ Panel {
 
   function resetDisplayOrder() {
     var block = root.displayOrderBlock(root.displayOrderData)
-    if (!root.paired || !block || root.displayOrderMutation !== "" || root.displayOrderRefreshRequested
+    if (!root.paired || !root.displayAllowed() || !block || root.displayOrderMutation !== "" || root.displayOrderRefreshRequested
         || root.displayOrderPendingKeys.length > 0 || root.actionBusy
         || (block.available !== true && root.displayOrderSavedKeysFor(root.displayOrderData).length === 0)) return
     root.displayOrderMutation = "reset"
@@ -2298,6 +2424,7 @@ Panel {
   }
 
   function previewModeFor(mode) {
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     if (mode) root.selectedModeId = mode.id
     if (!currentOutput || !selectedMode || selectedMode.id === currentOutput.current_mode_id) {
       actionMessage = "Choose an advertised mode different from the current mode"
@@ -2318,6 +2445,7 @@ Panel {
 
   function keepPreview() {
     if (!previewData || previewMutationBusy) return
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     previewMutationBusy = true
     remote("confirm", {preview_id: previewData.preview_id, visible: true}, function(result) {
       if (!result.ok) {
@@ -2333,6 +2461,7 @@ Panel {
 
   function revertPreview() {
     if (!previewData || previewMutationBusy) return
+    if (!root.displayAllowed()) { root.actionMessage = root.displayReason(); return }
     previewMutationBusy = true
     remote("restore", {source: "preview"}, function(result) {
       if (!result.ok) {
@@ -2751,6 +2880,11 @@ Panel {
         iconText: "↺"
         onClicked: root.restoreWorking()
       }
+      HintText {
+        visible: root.paired && !root.displayAllowed()
+        width: parent.width
+        text: root.displayReason()
+      }
       CursorButton {
         width: parent.width
         ownerView: "host"
@@ -2791,6 +2925,11 @@ Panel {
         text: "Restart Sunshine"
         iconText: "↻"
         onClicked: root.restartSunshine()
+      }
+      HintText {
+        visible: root.paired && !root.powerAllowed()
+        width: parent.width
+        text: root.powerReason()
       }
 
       PanelSeparator { width: parent.width }
@@ -2838,6 +2977,11 @@ Panel {
       spacing: Style.space(8)
 
       PanelSectionHeader { text: "Display"; width: parent.width }
+      HintText {
+        visible: root.paired && !root.displayAllowed()
+        width: parent.width
+        text: root.displayReason() + " Status and the display list stay available."
+      }
       Column {
         visible: !root.currentSavedProfile
         width: parent.width
@@ -3013,7 +3157,7 @@ Panel {
             text: "Save"
             iconText: "✓"
             leftAlign: true
-            enabled: !root.previewMutationBusy
+            enabled: root.displayAllowed() && !root.previewMutationBusy
             opacity: enabled ? 1.0 : 0.45
             onClicked: root.keepPreview()
           }
@@ -3023,7 +3167,7 @@ Panel {
             text: "Revert"
             iconText: "↩"
             leftAlign: true
-            enabled: !root.previewMutationBusy
+            enabled: root.displayAllowed() && !root.previewMutationBusy
             opacity: enabled ? 1.0 : 0.45
             onClicked: root.revertPreview()
           }
@@ -3082,7 +3226,7 @@ Panel {
               text: root.previewMatchesMode(modelData) ? "Preview " + root.countdownSeconds + "s" : "Preview"
               iconText: "◇"
               leftAlign: true
-              enabled: !root.actionBusy && (!root.previewData || root.previewMatchesMode(modelData))
+              enabled: root.displayAllowed() && !root.actionBusy && (!root.previewData || root.previewMatchesMode(modelData))
               opacity: enabled ? 1.0 : 0.45
               onClicked: root.previewModeFor(modelData)
             }
@@ -3104,7 +3248,7 @@ Panel {
               text: "Save"
               iconText: "✓"
               leftAlign: true
-              enabled: !!root.previewData && !root.previewMutationBusy
+              enabled: root.displayAllowed() && !!root.previewData && !root.previewMutationBusy
               opacity: enabled ? 1.0 : 0.45
               onClicked: root.keepPreview()
             }
@@ -3114,7 +3258,7 @@ Panel {
               text: "Revert"
               iconText: "↩"
               leftAlign: true
-              enabled: !root.previewMutationBusy
+              enabled: root.displayAllowed() && !root.previewMutationBusy
               opacity: enabled ? 1.0 : 0.45
               onClicked: root.revertPreview()
             }
@@ -3340,6 +3484,25 @@ Panel {
         width: parent.width
         text: "Pinned host: " + String(root.localData.host_id || "identity unavailable")
           + " · endpoint: " + String(root.localData.endpoint || "unavailable")
+      }
+      // What the owner of the host allows this pairing, worded as the Deck words
+      // it. It follows the scopes the last status read reported, or the ones
+      // saved at pairing when the host does not say.
+      Column {
+        id: accessGroup
+        visible: root.paired
+        width: parent.width
+        spacing: Style.space(2)
+
+        readonly property var scopesNow: root.heldScopes()
+
+        BodyText { width: parent.width; text: "Access on this host" }
+        HintText { width: parent.width; text: root.accessLine(accessGroup.scopesNow) }
+        HintText {
+          visible: root.accessNote(accessGroup.scopesNow) !== ""
+          width: parent.width
+          text: root.accessNote(accessGroup.scopesNow)
+        }
       }
       Column {
         visible: root.paired && !!root.outputsData
