@@ -46,6 +46,7 @@
     },
     "sunshine": {"$ref": "#/$defs/sunshine"},
     "self_check": {"$ref": "#/$defs/self_check"},
+    "drm": {"$ref": "#/$defs/drm"},
     "outputs": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/output"}},
     "display_order": {"$ref": "#/$defs/display_order"},
     "operation": {"$ref": "#/$defs/operation"},
@@ -53,6 +54,36 @@
     "pairing_session": {"type": "string", "minLength": 16, "maxLength": 256}
   },
   "$defs": {
+    "drm": {
+      "type": "object",
+      "required": ["available", "observed_at", "reason", "connectors"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "observed_at": {"type": ["string", "null"], "maxLength": 64},
+        "reason": {"type": ["string", "null"], "maxLength": 256},
+        "connectors": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "required": ["connector", "gpu_id", "display_name", "monitor_vendor", "monitor_product_id", "is_internal", "connected", "resolutions", "steam_output_id"],
+            "properties": {
+              "connector": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+              "gpu_id": {"type": "string", "pattern": "^drm:card[0-9]{1,4}$"},
+              "display_name": {"type": "string", "minLength": 1, "maxLength": 128},
+              "monitor_vendor": {"type": ["string", "null"], "pattern": "^[A-Z]{3}$"},
+              "monitor_product_id": {"type": ["integer", "null"], "minimum": 0, "maximum": 65535},
+              "is_internal": {"type": "boolean"},
+              "connected": {"type": "boolean"},
+              "resolutions": {"type": "array", "maxItems": 256, "items": {"type": "string", "pattern": "^[1-9][0-9]{0,4}x[1-9][0-9]{0,4}$"}},
+              "steam_output_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 128}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "self_check": {
       "type": "object",
       "required": ["certificate", "listener", "bridge", "temperature", "provider", "versions"],

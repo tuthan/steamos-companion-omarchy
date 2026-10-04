@@ -1,0 +1,78 @@
+{
+  "case": "drm/available",
+  "description": "Four DRM connectors (three connected). Steam reports HDMI-A-1, so only that connector carries steam_output_id; its resolution list lacks Steam's current 3440x1440, and the connected eDP-1 is internal.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/drm",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "drm": {
+        "available": true,
+        "observed_at": "2026-09-13T12:00:00.250000Z",
+        "reason": null,
+        "connectors": [
+          {
+            "connector": "DP-1",
+            "gpu_id": "drm:card0",
+            "display_name": "DELL U2723QE",
+            "monitor_vendor": "DEL",
+            "monitor_product_id": 41340,
+            "is_internal": false,
+            "connected": true,
+            "resolutions": [
+              "3840x2160",
+              "2560x1440",
+              "1920x1080"
+            ],
+            "steam_output_id": null
+          },
+          {
+            "connector": "HDMI-A-1",
+            "gpu_id": "drm:card0",
+            "display_name": "LG TV SSCR2",
+            "monitor_vendor": "GSM",
+            "monitor_product_id": 49780,
+            "is_internal": false,
+            "connected": true,
+            "resolutions": [
+              "3840x2160",
+              "1920x1080"
+            ],
+            "steam_output_id": "1"
+          },
+          {
+            "connector": "HDMI-A-2",
+            "gpu_id": "drm:card0",
+            "display_name": "HDMI-A-2",
+            "monitor_vendor": null,
+            "monitor_product_id": null,
+            "is_internal": false,
+            "connected": false,
+            "resolutions": [],
+            "steam_output_id": null
+          },
+          {
+            "connector": "eDP-1",
+            "gpu_id": "drm:card0",
+            "display_name": "eDP-1",
+            "monitor_vendor": null,
+            "monitor_product_id": null,
+            "is_internal": true,
+            "connected": true,
+            "resolutions": [
+              "1280x800"
+            ],
+            "steam_output_id": null
+          }
+        ]
+      }
+    }
+  }
+}

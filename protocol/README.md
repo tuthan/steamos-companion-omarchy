@@ -5,12 +5,14 @@ under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source 
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
-Pinned to Decky `main` at `51d92b3` (one commit after `v0.5.18`). Vendored:
+Pinned to Decky `main` at `10dc422` (six commits after `v0.5.18`). Vendored:
 `schema.json`; this file, where everything after this note is Decky's text
-unchanged; the flat `fixtures/*.json` that the tests load; and
-`fixtures/contract/status/`, the captured `GET /v1/status` exchanges. Not
-vendored: `fixtures/pairing-payload.json` and the rest of `fixtures/contract/`
-with its `index.json`. `fixtures/display-order-*.json` are Omarchy-local.
+unchanged, including its "DRM link facts" section; the flat `fixtures/*.json`
+that the tests load; `fixtures/contract/status/`, the captured `GET /v1/status`
+exchanges; and `fixtures/contract/drm/`, the captured `GET /v1/drm` exchanges.
+Not vendored: `fixtures/pairing-payload.json` and the rest of
+`fixtures/contract/` with its `index.json`. `fixtures/display-order-*.json` are
+Omarchy-local.
 
 The contract deliberately exposes only enumerated operations. It never carries
 raw Steam payloads, arbitrary methods, PIDs, service names, paths, commands,
@@ -187,3 +189,40 @@ predates the block omits it. A client compares `versions.protocol` with the prot
 speaks and renders the mismatch itself; the host keeps no peer registry and
 probes nothing. The block is bounded by `schema.json` (`$defs/self_check`,
 `additionalProperties: false`), so an extension is a schema change.
+
+## DRM link facts
+
+`GET /v1/drm` (`status.read`; no body, no query string) returns the connector
+facts the kernel publishes for each physical output, so a client can warn before
+a preview that picks a resolution the display link never listed. It is advisory:
+it never blocks a selection, and an older host answers `404 not_found`, which a
+client treats as "no facts", not an error.
+
+The body is `{protocol_version, drm: {available, observed_at, reason, connectors}}`.
+`available` is `false` with a `reason` and an empty list when the host cannot
+read any DRM connector. Each connector carries `connector`, `gpu_id`
+(`drm:cardN`), `display_name`, `monitor_vendor` and `monitor_product_id` (parsed
+EDID identity, `null` when unreadable), `is_internal`, `connected`,
+`resolutions` and `steam_output_id`. There are at most 16 connectors and 256
+resolutions each. No raw EDID bytes, serial numbers or MACs are ever included,
+and a contract test asserts the key allowlist.
+
+- **Resolutions only.** The DRM `modes` attribute has no refresh rates, so
+  `resolutions` is a deduplicated list of `"<width>x<height>"` strings and a
+  client must not draw any conclusion about refresh rate from it.
+- **The host does the join.** `steam_output_id` is the id of the display-bridge
+  output (`GET /v1/display/outputs`) that this connector corresponds to, matched
+  by connector name. It is `null` when the connector is disconnected, when the
+  same connector name is connected on two GPUs, when Steam reports the name
+  twice, or when the bridge has not reported. A client never matches by name
+  itself.
+- **When a client may warn.** Only for the connector whose `steam_output_id`
+  equals the selected output's `id`, when it is `connected`, not `is_internal`,
+  and its `resolutions` list is non-empty, and the selected mode's
+  `"<width>x<height>"` is not in that list. Anything else (unjoined,
+  unavailable, empty list, internal panel, older host) shows nothing. The text
+  says the resolution is not in the display link's mode list and that it may
+  still work; it must not call the mode invalid. Internal panels are skipped
+  because Steam exposes scaled modes the connector list does not.
+- **Fetch cadence.** Once per display interaction (and when the output topology
+  changes), never with each status poll.

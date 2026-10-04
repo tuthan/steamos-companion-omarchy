@@ -1,0 +1,24 @@
+{
+  "case": "drm/no-connectors",
+  "description": "No readable DRM connectors: available is false with a reason and an empty list, not an error.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/drm",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "drm": {
+        "available": false,
+        "observed_at": null,
+        "reason": "Linux DRM connectors are not readable on this host",
+        "connectors": []
+      }
+    }
+  }
+}
