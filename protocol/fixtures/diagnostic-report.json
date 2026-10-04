@@ -844,7 +844,7 @@
                 "name": "Panel 0",
                 "description": "Panel",
                 "is_internal": true,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -854,7 +854,7 @@
                 "name": "Panel 1",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -864,7 +864,7 @@
                 "name": "Panel 2",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -874,7 +874,7 @@
                 "name": "Panel 3",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -884,7 +884,7 @@
                 "name": "Panel 4",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -894,7 +894,7 @@
                 "name": "Panel 5",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -904,37 +904,7 @@
                 "name": "Panel 6",
                 "description": "Panel",
                 "is_internal": false,
-                "current_mode_id": "",
-                "modes": [],
-                "generation": 4,
-                "rgb_range": 0
-              },
-              {
-                "id": "o7",
-                "name": "Panel 7",
-                "description": "Panel",
-                "is_internal": false,
-                "current_mode_id": "",
-                "modes": [],
-                "generation": 4,
-                "rgb_range": 0
-              },
-              {
-                "id": "o8",
-                "name": "Panel 8",
-                "description": "Panel",
-                "is_internal": false,
-                "current_mode_id": "",
-                "modes": [],
-                "generation": 4,
-                "rgb_range": 0
-              },
-              {
-                "id": "o9",
-                "name": "Panel 9",
-                "description": "Panel",
-                "is_internal": false,
-                "current_mode_id": "",
+                "current_mode_id": null,
                 "modes": [],
                 "generation": 4,
                 "rgb_range": 0
@@ -1411,7 +1381,7 @@
                 "created_at": "2026-09-13T12:00:00Z",
                 "updated_at": "2026-09-13T12:00:08.250000Z",
                 "outcome": "mode_request_returned",
-                "reason": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+                "reason": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
                 "restore_state": "succeeded",
                 "restored": true,
                 "resolved_by": "active_output_and_mode",
@@ -1509,86 +1479,114 @@
               },
               {
                 "id": "op-filler-0000",
+                "request_id": "req-filler-0",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:00:00Z",
                 "updated_at": "2026-09-13T11:00:00Z"
               },
               {
                 "id": "op-filler-0001",
+                "request_id": "req-filler-1",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:01:00Z",
                 "updated_at": "2026-09-13T11:01:00Z"
               },
               {
                 "id": "op-filler-0002",
+                "request_id": "req-filler-2",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:02:00Z",
                 "updated_at": "2026-09-13T11:02:00Z"
               },
               {
                 "id": "op-filler-0003",
+                "request_id": "req-filler-3",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:03:00Z",
                 "updated_at": "2026-09-13T11:03:00Z"
               },
               {
                 "id": "op-filler-0004",
+                "request_id": "req-filler-4",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:04:00Z",
                 "updated_at": "2026-09-13T11:04:00Z"
               },
               {
                 "id": "op-filler-0005",
+                "request_id": "req-filler-5",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:05:00Z",
                 "updated_at": "2026-09-13T11:05:00Z"
               },
               {
                 "id": "op-filler-0006",
+                "request_id": "req-filler-6",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:06:00Z",
                 "updated_at": "2026-09-13T11:06:00Z"
               },
               {
                 "id": "op-filler-0007",
+                "request_id": "req-filler-7",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:07:00Z",
                 "updated_at": "2026-09-13T11:07:00Z"
               },
               {
                 "id": "op-filler-0008",
+                "request_id": "req-filler-8",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:08:00Z",
                 "updated_at": "2026-09-13T11:08:00Z"
               },
               {
                 "id": "op-filler-0009",
+                "request_id": "req-filler-9",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:09:00Z",
                 "updated_at": "2026-09-13T11:09:00Z"
               },
               {
                 "id": "op-filler-0010",
+                "request_id": "req-filler-10",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:10:00Z",
                 "updated_at": "2026-09-13T11:10:00Z"
               },
               {
                 "id": "op-filler-0011",
+                "request_id": "req-filler-11",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:11:00Z",
                 "updated_at": "2026-09-13T11:11:00Z"
               },
               {
                 "id": "op-filler-0012",
+                "request_id": "req-filler-12",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:12:00Z",
                 "updated_at": "2026-09-13T11:12:00Z"
               },
               {
                 "id": "op-filler-0013",
+                "request_id": "req-filler-13",
                 "kind": "power.suspend",
                 "state": "succeeded",
+                "created_at": "2026-09-13T11:13:00Z",
                 "updated_at": "2026-09-13T11:13:00Z"
               }
             ]
@@ -1628,7 +1626,7 @@
         },
         "outputs": {
           "available": true,
-          "count": 11,
+          "count": 8,
           "outputs": [
             {
               "id": "1",
@@ -3092,7 +3090,7 @@
                 "created_at": "2026-09-13T12:00:00Z",
                 "updated_at": "2026-09-13T12:00:08.250000Z",
                 "outcome": "mode_request_returned",
-                "reason": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+                "reason": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
                 "restore_state": "succeeded",
                 "restored": true,
                 "resolved_by": "active_output_and_mode",
@@ -3784,1142 +3782,782 @@
             "operations": [
               {
                 "id": "op-0000",
+                "request_id": "req-0000",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:00:00Z",
                 "updated_at": "2026-09-13T12:00:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0001",
+                "request_id": "req-0001",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:01:00Z",
                 "updated_at": "2026-09-13T12:01:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0002",
+                "request_id": "req-0002",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:02:00Z",
                 "updated_at": "2026-09-13T12:02:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0003",
+                "request_id": "req-0003",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:03:00Z",
                 "updated_at": "2026-09-13T12:03:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0004",
+                "request_id": "req-0004",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:04:00Z",
                 "updated_at": "2026-09-13T12:04:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0005",
+                "request_id": "req-0005",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:05:00Z",
                 "updated_at": "2026-09-13T12:05:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0006",
+                "request_id": "req-0006",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:06:00Z",
                 "updated_at": "2026-09-13T12:06:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0007",
+                "request_id": "req-0007",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:07:00Z",
                 "updated_at": "2026-09-13T12:07:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0008",
+                "request_id": "req-0008",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:08:00Z",
                 "updated_at": "2026-09-13T12:08:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0009",
+                "request_id": "req-0009",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:09:00Z",
                 "updated_at": "2026-09-13T12:09:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0010",
+                "request_id": "req-0010",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:10:00Z",
                 "updated_at": "2026-09-13T12:10:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0011",
+                "request_id": "req-0011",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:11:00Z",
                 "updated_at": "2026-09-13T12:11:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0012",
+                "request_id": "req-0012",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:12:00Z",
                 "updated_at": "2026-09-13T12:12:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0013",
+                "request_id": "req-0013",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:13:00Z",
                 "updated_at": "2026-09-13T12:13:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0014",
+                "request_id": "req-0014",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:14:00Z",
                 "updated_at": "2026-09-13T12:14:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0015",
+                "request_id": "req-0015",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:15:00Z",
                 "updated_at": "2026-09-13T12:15:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0016",
+                "request_id": "req-0016",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:16:00Z",
                 "updated_at": "2026-09-13T12:16:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0017",
+                "request_id": "req-0017",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:17:00Z",
                 "updated_at": "2026-09-13T12:17:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0018",
+                "request_id": "req-0018",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:18:00Z",
                 "updated_at": "2026-09-13T12:18:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0019",
+                "request_id": "req-0019",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:19:00Z",
                 "updated_at": "2026-09-13T12:19:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0020",
+                "request_id": "req-0020",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:20:00Z",
                 "updated_at": "2026-09-13T12:20:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0021",
+                "request_id": "req-0021",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:21:00Z",
                 "updated_at": "2026-09-13T12:21:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0022",
+                "request_id": "req-0022",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:22:00Z",
                 "updated_at": "2026-09-13T12:22:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0023",
+                "request_id": "req-0023",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:23:00Z",
                 "updated_at": "2026-09-13T12:23:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0024",
+                "request_id": "req-0024",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:24:00Z",
                 "updated_at": "2026-09-13T12:24:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0025",
+                "request_id": "req-0025",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:25:00Z",
                 "updated_at": "2026-09-13T12:25:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0026",
+                "request_id": "req-0026",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:26:00Z",
                 "updated_at": "2026-09-13T12:26:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0027",
+                "request_id": "req-0027",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:27:00Z",
                 "updated_at": "2026-09-13T12:27:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0028",
+                "request_id": "req-0028",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:28:00Z",
                 "updated_at": "2026-09-13T12:28:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               },
               {
                 "id": "op-0029",
+                "request_id": "req-0029",
                 "kind": "display.selection.preview",
                 "state": "failed",
+                "created_at": "2026-09-13T12:29:00Z",
                 "updated_at": "2026-09-13T12:29:00Z",
                 "outcome": "target_active_reconciled_after_reload",
                 "restore_state": "succeeded",
                 "restored": true,
-                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
+                "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason ",
                 "target": {
                   "target_output_key": "drm:card0:HDMI-A-1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
                   "baseline_output_key": "drm:card0:DP-1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
                   "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                   "connector": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
                   "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "target": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
                   "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo",
                   "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                  "connectors": [
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                    "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                  ],
-                  "output_keys": [
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                    "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                  ],
                   "mode": {
                     "width": 3840,
                     "height": 2160,
                     "refresh_hz": 59.94
-                  },
-                  "generation": 4
+                  }
                 }
               }
             ]
@@ -4946,25 +4584,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -4979,25 +4603,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5012,25 +4622,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5045,25 +4641,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5078,25 +4660,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5111,25 +4679,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5144,25 +4698,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5177,25 +4717,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5210,25 +4736,11 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
                 "mode": "3840x2160@59.94"
               }
             },
@@ -5243,25 +4755,106 @@
               "target": {
                 "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
                 "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
-                "generation": 4,
                 "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
                 "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
                 "target_output_key": "drm:card0:[token]",
                 "baseline_output_key": "drm:card0:[token]",
-                "target": "tttttttttttttttttttttttttttttttttttttttttttttttt",
-                "connectors": [
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-                  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-                ],
-                "output_keys": [
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-                  "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
-                ],
+                "mode": "3840x2160@59.94"
+              }
+            },
+            {
+              "updated_at": "2026-09-13T12:10:00Z",
+              "kind": "display.selection.preview",
+              "state": "failed",
+              "outcome": "target_active_reconciled_after_reload",
+              "restore_state": "succeeded",
+              "restored": true,
+              "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long",
+              "target": {
+                "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
+                "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+                "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+                "target_output_key": "drm:card0:[token]",
+                "baseline_output_key": "drm:card0:[token]",
+                "mode": "3840x2160@59.94"
+              }
+            },
+            {
+              "updated_at": "2026-09-13T12:11:00Z",
+              "kind": "display.selection.preview",
+              "state": "failed",
+              "outcome": "target_active_reconciled_after_reload",
+              "restore_state": "succeeded",
+              "restored": true,
+              "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long",
+              "target": {
+                "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
+                "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+                "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+                "target_output_key": "drm:card0:[token]",
+                "baseline_output_key": "drm:card0:[token]",
+                "mode": "3840x2160@59.94"
+              }
+            },
+            {
+              "updated_at": "2026-09-13T12:12:00Z",
+              "kind": "display.selection.preview",
+              "state": "failed",
+              "outcome": "target_active_reconciled_after_reload",
+              "restore_state": "succeeded",
+              "restored": true,
+              "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long",
+              "target": {
+                "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
+                "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+                "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+                "target_output_key": "drm:card0:[token]",
+                "baseline_output_key": "drm:card0:[token]",
+                "mode": "3840x2160@59.94"
+              }
+            },
+            {
+              "updated_at": "2026-09-13T12:13:00Z",
+              "kind": "display.selection.preview",
+              "state": "failed",
+              "outcome": "target_active_reconciled_after_reload",
+              "restore_state": "succeeded",
+              "restored": true,
+              "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long",
+              "target": {
+                "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
+                "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+                "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+                "target_output_key": "drm:card0:[token]",
+                "baseline_output_key": "drm:card0:[token]",
+                "mode": "3840x2160@59.94"
+              }
+            },
+            {
+              "updated_at": "2026-09-13T12:14:00Z",
+              "kind": "display.selection.preview",
+              "state": "failed",
+              "outcome": "target_active_reconciled_after_reload",
+              "restore_state": "succeeded",
+              "restored": true,
+              "reason": "long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long reason long",
+              "target": {
+                "output_id": "oooooooooooooooooooooooooooooooooooooooooooooooo",
+                "mode_id": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "action": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "connector": "cccccccccccccccccccccccccccccccccccccccccccccccc",
+                "output_key": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+                "target_output_key": "drm:card0:[token]",
+                "baseline_output_key": "drm:card0:[token]",
                 "mode": "3840x2160@59.94"
               }
             }

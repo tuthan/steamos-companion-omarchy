@@ -5,7 +5,7 @@ under `/home/hvo/Projects/steamos-companion-decky/protocol/` remains the source 
 truth; this copy is reviewed and bundled with the Omarchy client so runtime
 behavior never depends on a sibling checkout.
 
-Pinned to Decky `main` at `952a079` (eight commits after `v0.5.18`). Vendored:
+Pinned to Decky `main` at `e300376` (eleven commits after `v0.5.18`). Vendored:
 `schema.json`; `operation-vocabulary.json`; this file, where everything after
 this note is Decky's text unchanged, including its "DRM link facts", "Operation
 journal" and "Diagnostic report" sections; the flat `fixtures/*.json` that the
@@ -336,7 +336,9 @@ Redaction (applied identically by every client):
   from the oldest end until it fits and `truncated` is set.
 - **Never fail:** a malformed body yields a null section, not an error.
 
-Vector cases marked `"strict": true` must match exactly. `hostile-shape` is
+Vector cases marked `"strict": true` use only bodies the wire schema allows
+(a Decky test enforces it) and journal targets of at most eight keys, so every
+compliant client's own decoder reaches them, and they must match exactly. `hostile-shape` is
 `"strict": false`: the body is malformed, so a client whose own decoder refuses
 it may report that section as `null`, but it must not fail and must not repeat
 any identifier, address, pin or token from the input.
