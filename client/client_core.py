@@ -646,6 +646,26 @@ def validate_response_limits(value: Any) -> None:
     visit(value)
 
 
+def _optional_self_check(value: dict[str, Any]) -> dict[str, Any]:
+    """Keep the additive `self_check` status block from ever failing a status read.
+
+    The block is optional diagnostics. One that is not an object, or that
+    overflows the response budgets, is dropped so the host is treated like one
+    that predates it; the rest of the response is still validated in full. A
+    block that passes is forwarded unchanged and the panel renders it.
+    """
+    if "self_check" not in value:
+        return value
+    block = value["self_check"]
+    try:
+        if not isinstance(block, dict):
+            raise ClientError("self_check is not an object")
+        validate_response_limits(block)
+    except ClientError:
+        return {key: item for key, item in value.items() if key != "self_check"}
+    return value
+
+
 class PinnedTransport:
     def __init__(self, endpoint: str, pin: str, token: str | None = None, timeout: float = 5.0):
         self.endpoint = validate_endpoint(endpoint)
@@ -732,6 +752,8 @@ class PinnedTransport:
                 )
             if value.get("protocol_version") != PROTOCOL_VERSION:
                 raise ClientError("host protocol version is unsupported")
+            if path == "/v1/status":
+                value = _optional_self_check(value)
             validate_response_limits(value)
             return value
         except ClientError as exc:

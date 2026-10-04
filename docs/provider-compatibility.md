@@ -58,6 +58,13 @@ returns success only after a fresh `running` sample, or `already_running` if
 the owner recovered the process before the serialized ensure call. Disable or
 revocation cancels queued recovery; a dispatched call is not replayed.
 
+The same status response carries `self_check.provider` (`monitor_enabled`,
+`state`, `stale`, and the owner's `contract_version`, `null` while monitoring is
+off). Omarchy shows it under Settings, Connection details, Host health, which is
+a convenient place to read the contract version during the validation below. A
+`running` state reported with `stale: true` is shown as stale, not as confirmed
+running.
+
 ## Host validation still required
 
 On the SteamOS reference host, verify that the guarded loader call reaches the

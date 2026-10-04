@@ -176,6 +176,16 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   status and restart action only when Decky reports monitoring enabled; a
   disabled host monitor produces no Sunshine control and no separate client
   poll.
+- Host health is a read of the status response the open panel already polls; it
+  adds no request, timer, or helper action. The `self_check` block is optional
+  and every part of it is treated as optional: a missing or malformed part
+  becomes a cautious row, never a failed status. The panel says the host does
+  not report its health only once the host has answered without the block, not
+  while it is unreachable, and a stale `running` Sunshine is not shown as a
+  confirmed healthy state. Rows and wording follow the Decky card; the
+  presentation functions are plain JavaScript between the `self-check` markers
+  in `Panel.qml` so `tests/test_health.py` can run them against the pinned
+  fixtures.
 - Multiple monitors may instantiate the widget, but the server-side
   `request_id` and host mutation lane prevent duplicate remote mutations.
 

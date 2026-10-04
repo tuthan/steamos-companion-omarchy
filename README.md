@@ -53,6 +53,11 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
    exposes display-order control, you can also reorder connected outputs, save
    that order for the next session, or save it and restart Gaming Mode after
    confirmation.
+5. Open **Settings → Connection details → Host health** to see what the host
+   reports about itself: certificate validity, listener, Steam bridge,
+   temperature source, Sunshine, and plugin and protocol versions. It reads the
+   status the open panel already polls. A host on an older Decky plugin does not
+   report it, and the panel says to update that plugin.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled

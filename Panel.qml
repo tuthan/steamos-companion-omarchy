@@ -1376,6 +1376,128 @@ Panel {
     })
   }
 
+  // ---- host health: the optional `self_check` block of the status response --
+  // The newest protocol this client speaks; the host nudge compares against it.
+  readonly property int hostProtocolVersion: 1
+
+  // Pure presentation of the block, kept in step with the Decky card
+  // (selfCheckRows / selfCheckNudge in its frontend) so both clients word the
+  // same facts the same way. It reads only what status already returned and
+  // never asks the host for anything. Every part is optional: a missing or
+  // malformed part degrades to a cautious row instead of throwing, and strings
+  // are capped at the schema's own bounds. tests/test_health.py runs this block
+  // under Node against the pinned fixtures, so keep it free of QML properties.
+  // self-check:begin
+  function selfCheckText(value, limit) {
+    return typeof value === "string" ? value.slice(0, limit) : ""
+  }
+
+  function selfCheckPart(check, name) {
+    var part = check ? check[name] : null
+    return part !== null && typeof part === "object" && !Array.isArray(part) ? part : {}
+  }
+
+  function selfCheckInteger(value) {
+    return typeof value === "number" && isFinite(value) && Math.floor(value) === value
+  }
+
+  // The host writes UTC `YYYY-MM-DDTHH:MM:SSZ`; anything else is not a date.
+  function selfCheckInstant(value) {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value) ? Date.parse(value) : NaN
+  }
+
+  function selfCheckDay(value) {
+    return isFinite(selfCheckInstant(value)) ? value.slice(0, 10) : null
+  }
+
+  function selfCheckGlyph(state) {
+    // Word first, glyph second: every row also says its state in text.
+    return state === "ok" ? "✓" : state === "warn" ? "⊘" : "○"
+  }
+
+  function selfCheckRows(check, nowMs) {
+    if (!check || typeof check !== "object" || Array.isArray(check)) return []
+    var rows = []
+
+    var certificate = selfCheckPart(check, "certificate")
+    var shortPrint = selfCheckText(certificate.fingerprint_short, 8)
+    var identity = shortPrint ? " · …" + shortPrint : ""
+    var notBeforeDay = selfCheckDay(certificate.not_before)
+    var notAfterDay = selfCheckDay(certificate.not_after)
+    // Without a usable clock the validity window cannot be judged, so it is not.
+    var clockUsable = typeof nowMs === "number" && isFinite(nowMs)
+    if (certificate.ready !== true)
+      rows.push({id: "certificate", label: "Certificate", state: "warn", value: "Not ready — pairing is unavailable"})
+    else if (clockUsable && notAfterDay && nowMs > selfCheckInstant(certificate.not_after))
+      rows.push({id: "certificate", label: "Certificate", state: "warn", value: "Expired " + notAfterDay + identity})
+    else if (clockUsable && notBeforeDay && nowMs < selfCheckInstant(certificate.not_before))
+      rows.push({id: "certificate", label: "Certificate", state: "warn", value: "Not valid until " + notBeforeDay + " — check this device's clock" + identity})
+    else if (notAfterDay)
+      rows.push({id: "certificate", label: "Certificate", state: "ok", value: "Valid until " + notAfterDay + identity})
+    else
+      rows.push({id: "certificate", label: "Certificate", state: "ok", value: "Ready" + identity})
+
+    var listener = selfCheckPart(check, "listener")
+    var address = selfCheckText(listener.address, 64) || "all interfaces"
+    var port = selfCheckInteger(listener.port) && listener.port >= 1 && listener.port <= 65535 ? listener.port : 18443
+    rows.push(listener.bound === true
+      ? {id: "listener", label: "Listener", state: "ok", value: "Listening on " + address + ":" + port}
+      : {id: "listener", label: "Listener", state: "off", value: "Not listening"})
+
+    var bridge = selfCheckPart(check, "bridge")
+    var methods = []
+    for (var index = 0; Array.isArray(bridge.methods) && index < bridge.methods.length && methods.length < 8; index++) {
+      var method = selfCheckText(bridge.methods[index], 32)
+      if (method) methods.push(method)
+    }
+    rows.push(bridge.ready === true
+      ? {id: "bridge", label: "Steam bridge", state: "ok", value: methods.length ? "Ready · " + methods.join(", ") : "Ready"}
+      : {id: "bridge", label: "Steam bridge", state: "warn", value: "Not ready — power and display control are unavailable"})
+
+    var source = selfCheckPart(check, "temperature").source
+    rows.push(source === "steam" || source === "hwmon"
+      ? {id: "temperature", label: "Temperature", state: "ok", value: source === "steam" ? "Read from Steam" : "Read from system sensors"}
+      : {id: "temperature", label: "Temperature", state: "off", value: "No sensor reading"})
+
+    // A stale "running" is the last thing the host heard, not a confirmation.
+    var provider = selfCheckPart(check, "provider")
+    var contract = selfCheckText(provider.contract_version, 64) ? " · " + selfCheckText(provider.contract_version, 64) : ""
+    var stale = provider.stale === true ? " (stale)" : ""
+    if (provider.monitor_enabled !== true)
+      rows.push({id: "sunshine", label: "Sunshine", state: "off", value: "Monitoring off"})
+    else if (provider.state === "running")
+      rows.push({id: "sunshine", label: "Sunshine", state: provider.stale === true ? "unknown" : "ok", value: "Running" + stale + contract})
+    else if (provider.state === "stopped")
+      rows.push({id: "sunshine", label: "Sunshine", state: "warn", value: "Stopped" + stale + contract})
+    else if (provider.state === "restarting")
+      rows.push({id: "sunshine", label: "Sunshine", state: "warn", value: "Restarting" + contract})
+    else
+      rows.push({id: "sunshine", label: "Sunshine", state: "unknown", value: (provider.state === "unavailable" ? "Owner unavailable" : "State unknown") + contract})
+
+    // "unknown" is the host's own literal for a version it could not read.
+    var versions = selfCheckPart(check, "versions")
+    var plugin = selfCheckText(versions.plugin, 64)
+    var pluginKnown = plugin !== "" && plugin !== "unknown"
+    rows.push({
+      id: "versions", label: "Host", state: pluginKnown ? "ok" : "unknown",
+      value: "Plugin " + (pluginKnown ? "v" + plugin : "version unknown")
+        + " · protocol " + (selfCheckInteger(versions.protocol) ? versions.protocol : "unknown")
+    })
+    return rows
+  }
+
+  function selfCheckNudge(check, supported) {
+    var protocol = selfCheckPart(check, "versions").protocol
+    if (!selfCheckInteger(protocol))
+      return {state: "unknown", text: "This host does not report its health. Update the Decky plugin on the host to see it here."}
+    if (protocol > supported)
+      return {state: "newer", text: "Host protocol " + protocol + " is newer than this client supports — some actions may be unavailable. Update this plugin."}
+    if (protocol < supported)
+      return {state: "older", text: "Host protocol " + protocol + " is older than this client — update the plugin on the host."}
+    return {state: "ok", text: "Host protocol " + protocol + " matches this client."}
+  }
+  // self-check:end
+
   function sunshineVisible() {
     // Sunshine is an optional server-owned capability. A disabled monitor is
     // not a stopped process and must not appear as a client recovery control.
@@ -2741,6 +2863,61 @@ Panel {
         visible: root.paired && !root.outputsData
         width: parent.width
         text: "Saved recovery details are not available yet; open Display to refresh them."
+      }
+
+      // Host health is read from the status response the open panel already
+      // polls, so this group adds no request and no timer of its own. The
+      // block is optional: a host that predates it gets the update nudge.
+      Column {
+        id: healthGroup
+        visible: root.paired
+        width: parent.width
+        spacing: Style.space(4)
+
+        readonly property var healthCheck: root.statusData && typeof root.statusData.self_check === "object" ? root.statusData.self_check : null
+        readonly property var healthRows: root.selfCheckRows(healthCheck, root.nowMs)
+        readonly property var healthNudge: root.selfCheckNudge(healthCheck, root.hostProtocolVersion)
+        // A fixed model keeps the delegates alive across polls; only their text
+        // changes, and an unchanged string does not relayout the scroll view.
+        readonly property var healthRowIds: ["certificate", "listener", "bridge", "temperature", "sunshine", "versions"]
+
+        PanelSectionHeader { text: "Host health"; width: parent.width }
+        HintText {
+          visible: !root.statusData
+          width: parent.width
+          text: "Host health appears here once the host answers a status read."
+        }
+        HintText {
+          visible: !!root.statusData && healthGroup.healthRows.length > 0
+          width: parent.width
+          text: "Reported by the host · " + root.lastObservation + (root.statusState === "stale" ? " · stale" : "")
+        }
+        Repeater {
+          model: healthGroup.healthRowIds
+          delegate: BodyText {
+            required property string modelData
+            readonly property var row: {
+              var rows = healthGroup.healthRows
+              for (var index = 0; index < rows.length; index++) {
+                if (rows[index].id === modelData) return rows[index]
+              }
+              return null
+            }
+            visible: !!row
+            width: parent.width
+            text: row ? root.selfCheckGlyph(row.state) + " " + row.label + ": " + row.value : ""
+          }
+        }
+        HintText {
+          visible: !!root.statusData && healthGroup.healthNudge.state === "ok"
+          width: parent.width
+          text: healthGroup.healthNudge.text
+        }
+        BodyText {
+          visible: !!root.statusData && healthGroup.healthNudge.state !== "ok"
+          width: parent.width
+          text: healthGroup.healthNudge.text
+        }
       }
 
       PanelSeparator { width: parent.width }
