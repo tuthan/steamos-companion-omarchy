@@ -1,0 +1,87 @@
+{
+  "case": "status/self-check-plugin-version-unknown",
+  "description": "self_check when the host cannot read its plugin version: versions.plugin is the literal \"unknown\", never a guess.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/status",
+    "headers": {
+      "Authorization": "Bearer fixture-token-0002-xxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "protocol_version": 1,
+      "host_id": "host-fixture0001xxxxxxxxxxxxx",
+      "boot_id": "00000000-0000-4000-8000-000000000001",
+      "steam_bridge": "ready",
+      "steam_reason": null,
+      "steam_age_ms": 0,
+      "wake_target": {
+        "available": true,
+        "mac": "001122334455",
+        "interface": "enp5s0",
+        "source_address": "192.168.50.24",
+        "reason": null
+      },
+      "uptime_seconds": 812,
+      "cpu_temperature": {
+        "celsius": 48.5,
+        "label": "Tdie"
+      },
+      "capabilities": {
+        "suspend": "available",
+        "restart": "available",
+        "shutdown": "available",
+        "display_rescue": "available",
+        "sunshine_restart": "disabled"
+      },
+      "sunshine": {
+        "enabled": false,
+        "provider": null,
+        "state": "disabled",
+        "checked_at": null,
+        "age_ms": null,
+        "stale": false,
+        "reason": null,
+        "operation_id": null
+      },
+      "self_check": {
+        "certificate": {
+          "ready": true,
+          "fingerprint_short": "aaaaaaaa",
+          "not_before": "2026-09-13T11:59:00Z",
+          "not_after": "2036-09-10T11:59:00Z"
+        },
+        "listener": {
+          "bound": true,
+          "address": "0.0.0.0",
+          "port": 18443
+        },
+        "bridge": {
+          "ready": true,
+          "methods": [
+            "display",
+            "restart",
+            "shutdown",
+            "suspend"
+          ]
+        },
+        "temperature": {
+          "source": "hwmon"
+        },
+        "provider": {
+          "monitor_enabled": false,
+          "state": "disabled",
+          "stale": false,
+          "contract_version": null
+        },
+        "versions": {
+          "protocol": 1,
+          "plugin": "unknown"
+        }
+      }
+    }
+  }
+}

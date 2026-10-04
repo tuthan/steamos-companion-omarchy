@@ -1,0 +1,17 @@
+{
+  "case": "status/unauthorized-missing",
+  "description": "No Authorization header.",
+  "request": {
+    "method": "GET",
+    "path": "/v1/status",
+    "headers": {},
+    "body": null
+  },
+  "response": {
+    "status": 401,
+    "body": {
+      "error": "unauthorized",
+      "message": "authentication required"
+    }
+  }
+}

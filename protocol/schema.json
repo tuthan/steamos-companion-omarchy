@@ -45,6 +45,7 @@
       "additionalProperties": false
     },
     "sunshine": {"$ref": "#/$defs/sunshine"},
+    "self_check": {"$ref": "#/$defs/self_check"},
     "outputs": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/output"}},
     "display_order": {"$ref": "#/$defs/display_order"},
     "operation": {"$ref": "#/$defs/operation"},
@@ -52,6 +53,69 @@
     "pairing_session": {"type": "string", "minLength": 16, "maxLength": 256}
   },
   "$defs": {
+    "self_check": {
+      "type": "object",
+      "required": ["certificate", "listener", "bridge", "temperature", "provider", "versions"],
+      "properties": {
+        "certificate": {
+          "type": "object",
+          "required": ["ready", "fingerprint_short", "not_before", "not_after"],
+          "properties": {
+            "ready": {"type": "boolean"},
+            "fingerprint_short": {"type": ["string", "null"], "pattern": "^[0-9a-f]{8}$"},
+            "not_before": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
+            "not_after": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"}
+          },
+          "additionalProperties": false
+        },
+        "listener": {
+          "type": "object",
+          "required": ["bound", "address", "port"],
+          "properties": {
+            "bound": {"type": "boolean"},
+            "address": {"type": ["string", "null"], "maxLength": 64},
+            "port": {"type": ["integer", "null"], "minimum": 1, "maximum": 65535}
+          },
+          "additionalProperties": false
+        },
+        "bridge": {
+          "type": "object",
+          "required": ["ready", "methods"],
+          "properties": {
+            "ready": {"type": "boolean"},
+            "methods": {"type": "array", "maxItems": 8, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$"}}
+          },
+          "additionalProperties": false
+        },
+        "temperature": {
+          "type": "object",
+          "required": ["source"],
+          "properties": {"source": {"enum": ["steam", "hwmon", "unavailable"]}},
+          "additionalProperties": false
+        },
+        "provider": {
+          "type": "object",
+          "required": ["monitor_enabled", "state", "stale", "contract_version"],
+          "properties": {
+            "monitor_enabled": {"type": "boolean"},
+            "state": {"enum": ["disabled", "unavailable", "unknown", "running", "stopped", "restarting"]},
+            "stale": {"type": "boolean"},
+            "contract_version": {"type": ["string", "null"], "maxLength": 64}
+          },
+          "additionalProperties": false
+        },
+        "versions": {
+          "type": "object",
+          "required": ["protocol", "plugin"],
+          "properties": {
+            "protocol": {"type": "integer", "minimum": 1},
+            "plugin": {"type": "string", "minLength": 1, "maxLength": 64}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "sunshine": {
       "type": "object",
       "required": ["enabled", "provider", "state", "checked_at", "age_ms", "stale", "reason", "operation_id"],
