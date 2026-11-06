@@ -47,12 +47,21 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
 
 1. Open the widget’s **Settings** and choose **Find hosts**.
 2. Select the intended host, choose **Request pairing**, compare the code with
-   the one shown by the Decky plugin, and approve it on the Deck.
-3. Use **Host** for status, wake, suspend, restart, and shutdown.
+   the one shown by the Decky plugin, and approve it on the Deck. **Cancel
+   pairing request** also asks the host to cancel it; if the host cannot be
+   reached the request is still dropped here, the panel says so, and it expires
+   on the host within two minutes (reject it in Decky if it is still listed).
+3. Use **Host** for status, wake, suspend, restart, and shutdown. Wake reports
+   three separate facts as they happen: "Wake packet sent — waiting for host",
+   then "Authenticated host response received" with Steam not ready yet, then
+   with Steam ready. A sent packet does not show that the host woke. After a
+   suspend request, a host that stops answering is shown as "Sleep requested;
+   host unreachable", which is not proof that it is asleep.
 4. Use **Display** to preview, save, or revert a display mode. When the host
    exposes display-order control, you can also reorder connected outputs, save
    that order for the next session, or save it and restart Gaming Mode after
-   confirmation.
+   confirmation. Everything is reachable from the keyboard (arrows or hjkl move,
+   Enter or Space acts), including Preview, Save and Revert of a display preview.
 5. Open **Settings → Connection details → Host health** to see what the host
    reports about itself: certificate validity, listener, Steam bridge,
    temperature source, Sunshine, and plugin and protocol versions. It reads the
@@ -87,6 +96,12 @@ directory-installed and does not use the Decky ZIP or checksum artifact.
    nothing is forgotten. If the owner locks remote access on the host, the panel
    sees a refused or timed-out connection, the same as for a host that is off;
    the pairing is kept and works again after the owner unlocks it.
+9. **Settings → Forget host** first asks the host to revoke this client's
+   credential, then removes the local pairing. If the host cannot be reached or
+   refuses, the local pairing is removed anyway and the panel says that the host
+   credential stays valid until it is revoked in Decky. **Revoke host
+   credential** is the strict form: the local pairing is removed only after the
+   host accepts the revocation.
 
 The host listens on all IPv4 interfaces by default. Set its host/IP override
 only when it has multiple network interfaces. Sunshine monitoring is disabled
@@ -123,20 +138,46 @@ sent only by this explicit command. A successful response includes the host
 operation and read-back profile. Record the operation ID, then use `journal get` to reconcile it. Use `--plain` instead of `--json` for line-oriented human
 output. Errors are emitted as a JSON object by default.
 
-`journal list` uses the additive `GET /v1/operations` route. Hosts that only
-implement the pinned `v0.5.16` protocol can still serve `journal get`, but need
-the matching host update before the list command is available. A 404 means the
-host build does not expose the list route; it is not acceptance evidence.
+`journal list` uses the additive `GET /v1/operations` route, which Decky serves
+from `v0.5.18`. An older host can still serve `journal get` but not the list
+command. A 404 means the host build does not expose the list route; it is not
+acceptance evidence.
 
 `journal view` reads the same bounded journal the panel shows: each record is
 rebuilt from an allowlist (no `request_id`, no unknown fields), text loses its
 control characters, and only the newest 64 of at most 256 records are kept, with
 `total`, `truncated` and `dropped` counts. A host without the route, or a reply
 that is not a bounded list, is reported as `"available": false` with an
-`unavailable` reason and exit 0. `journal list` is unchanged and prints the
-host's list as it came; it keeps the client's generic response budget, so a very
-long journal (well over a hundred records) is refused as too complex there, and
-`journal view` is the bounded way to read it.
+`unavailable` reason and exit 0. `journal list` prints the host's list as it
+came. It reads through the same route-restricted reader, so a full 256-record
+journal is accepted (the generic response budget does not apply to this one
+route; the 256 KiB body limit still does), and `journal view` is the bounded
+form.
+
+Every command that changes the host (`power`, `sunshine recover`, and
+`display preview`, `keep`, `revert`, `restore`, `save-current`, `order-save` and
+`order-reset`) takes `--request-id ID`: 1 to 128 letters, digits, `.`, `_`, `:` or
+`-`, starting with a letter or digit. Without it each run mints a new ID. To
+retry a command whose answer was lost, repeat it with the same ID and the same
+arguments: while the host still holds the record it returns the original
+operation instead of running the command again, and the same ID with different
+arguments is refused as a conflict. Choose the ID before the first attempt, and
+pass `--preview-id` as well on `display keep` (without it the active preview is
+looked up first). Reads, `wake` and `pair` name no host operation and do not
+take the flag.
+
+Exit codes: `0` when the command succeeded or only read something, `1` when it
+failed definitively (the host refused it, arguments were invalid, the
+confirmation was declined), and `2` when the result is unknown: the host
+accepted the request but its operation is still `accepted`, `dispatched`,
+`observed_return` or `unknown`, or the connection was lost after a write was
+sent. On `2`, reconcile with `journal get` or repeat the command with the same
+`--request-id` before doing anything else.
+
+`pair cancel` asks the host to cancel the pending request (proved by the
+private nonce, with no credential) and always removes the local request. The
+result says `acknowledged`, and, when the host did not confirm, carries a
+`notice` saying what is left to do in Decky.
 
 `display link-facts` reads the advisory DRM connector facts (resolutions only).
 A host without the route, or one that answers badly, is reported as
@@ -220,6 +261,15 @@ omarchy plugin enable io.github.tuthan.steamoscompanion --section right
 
 Repeat the `rsync` and rescan commands after changes.
 
+## Upgrading from SteamOS Remote
+
+SteamOS Remote was renamed SteamOS Companion as a clean break: there is no
+migration. Disable and remove the old plugin, delete its state directory, install
+this client and pair again from **Settings → Find hosts**. Do not copy
+credentials or pairings between the old and new names. The Decky host must be
+reinstalled the same way; see the Decky repository's upgrade note and
+[`docs/decisions/clean-rename.md`](docs/decisions/clean-rename.md).
+
 ## Remove
 
 ```sh
@@ -228,5 +278,6 @@ omarchy plugin remove io.github.tuthan.steamoscompanion
 ```
 
 Removing the plugin does not remove its pairing credentials. Use **Forget
-local pairing** in the widget settings if those credentials should also be
-deleted.
+host** in the widget settings first if those credentials should also be
+deleted; it asks the host to revoke this client's credential before removing the
+local pairing.

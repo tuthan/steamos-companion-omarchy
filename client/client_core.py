@@ -40,6 +40,8 @@ DISCOVERY_MAX_RESPONSE_BYTES = 16 * 1024
 DISCOVERY_CONNECT_TIMEOUT = 0.35
 DISCOVERY_SERVER_PREFIX = "SteamOSCompanion/1"
 PAIRING_REQUEST_TIMEOUT_SECONDS = 120
+PAIR_CANCEL_UNCONFIRMED = "Cancelled here, but the host did not confirm it. The request expires there on its own within two minutes; reject it in Decky if it is still listed."
+PAIR_CANCEL_APPROVED = "The host owner had already approved this request, so it could not be cancelled. Remove this client in Decky if it is listed."
 PAIRING_EXCHANGE_TIMEOUT = 6.0
 DEFAULT_TIMEOUT = 5.0
 POLL_TIMEOUT = 2.5
@@ -79,7 +81,7 @@ SAS_SCRYPT_P = 1
 SAS_MAXMEM = 64 * 1024 * 1024
 NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{20,32}$")
 INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
-PATH_RE = re.compile(r"^/v1/(?:pair/request|status|drm|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|display/save-current|power|sunshine/restart|pair/revoke-self|operations|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
+PATH_RE = re.compile(r"^/v1/(?:pair/request|pair/cancel|status|drm|display/outputs|display/order(?:/automatic)?|display/preview|display/confirm|display/restore|display/save-current|power|sunshine/restart|pair/revoke-self|operations|operations/[A-Za-z0-9][A-Za-z0-9_.:-]{0,127})$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 DISPLAY_OUTPUT_KEY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:|/-]{0,127}$")
 PIN_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -659,6 +661,10 @@ class PendingStore:
             raise ClientError("pairing request session is invalid")
         if value["method"] == "verification":
             decode_verification_nonce(value.get("verification_nonce"))
+            # Learned from the host's first answer; without it the host cannot be asked to cancel.
+            learned = value.get("pairing_id", "")
+            if learned and (not isinstance(learned, str) or not ID_RE.fullmatch(learned)):
+                raise ClientError("pairing request identity is invalid")
             code = value.get("pairing_code", "")
             if not isinstance(code, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{4}", code):
                 raise ClientError("pairing request code is invalid")
@@ -1346,6 +1352,9 @@ class ClientCore:
                 self.pending.clear()
                 raise ClientError("host returned an invalid pairing session")
             pending["pairing_session"] = session
+        host_pairing_id = response.get("pairing_id")
+        if pending["method"] == "verification" and isinstance(host_pairing_id, str) and ID_RE.fullmatch(host_pairing_id):
+            pending["pairing_id"] = host_pairing_id
         self.pending.save(pending)
         return self._pair_view(pending)
 
@@ -1425,8 +1434,59 @@ class ClientCore:
         return self._pair_exchange(pending)
 
     def pair_cancel(self) -> dict[str, Any]:
-        self.pending.clear()
-        return {"state": "cancelled"}
+        """Cancel the pending request on the host, then drop it here whatever the host said.
+
+        The host keeps its own record of a verification request until it expires, and the
+        owner sees it in Decky, so the client asks it to cancel, proving the request with
+        the private nonce (and the pairing session once the host issued one). A full-payload
+        request has no nonce to prove and is cancelled locally only. The local record goes
+        either way: an unreachable host must not leave Cancel stuck, and the nonce is of no
+        use once the owner has walked away. The view says whether the host acknowledged, and
+        what is left to do in Decky when it did not.
+        """
+        pending = self.pending.load()
+        view: dict[str, Any] = {"state": "cancelled", "acknowledged": False, "server_request_may_remain": False}
+        if pending is None or pending.get("method") != "verification":
+            self.pending.clear()
+            return view
+        try:
+            pairing_id = pending.get("pairing_id")
+            if not isinstance(pairing_id, str) or not pairing_id:
+                # The host never named the request (a record written before the id was kept).
+                view["server_request_may_remain"] = True
+                view["notice"] = PAIR_CANCEL_UNCONFIRMED
+                return view
+            body: dict[str, Any] = {
+                "pairing_id": pairing_id,
+                "verification_nonce": pending["verification_nonce"],
+                "client_id": pending["client_id"],
+            }
+            if pending.get("pairing_session"):
+                body["pairing_session"] = pending["pairing_session"]
+            transport = PinnedTransport(pending["endpoint"], pending["certificate_fingerprint"], timeout=PAIRING_EXCHANGE_TIMEOUT)
+            try:
+                response = transport.request("POST", "/v1/pair/cancel", body)
+            except ClientError as exc:
+                if exc.status in (404, 410):
+                    # The host no longer has an active request under this id: it expired or was consumed.
+                    view.update(state="expired", acknowledged=True)
+                elif exc.status == 409:
+                    # The owner approved first. The credential was never collected and cannot be now.
+                    view["server_request_may_remain"] = True
+                    view["notice"] = PAIR_CANCEL_APPROVED
+                else:
+                    view["server_request_may_remain"] = True
+                    view["notice"] = PAIR_CANCEL_UNCONFIRMED
+                return view
+            state = response.get("state")
+            if state in {"cancelled", "rejected", "expired"}:
+                view.update(state=state, acknowledged=True)
+            else:
+                view["server_request_may_remain"] = True
+                view["notice"] = PAIR_CANCEL_UNCONFIRMED
+            return view
+        finally:
+            self.pending.clear()
 
     def pending_pairing(self) -> dict[str, Any] | None:
         pending = self.pending.load()

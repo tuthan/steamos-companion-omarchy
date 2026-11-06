@@ -63,6 +63,14 @@ Panel {
   property string wakeMac: ""
   property string wakeInterface: ""
   property string wakeHostInterface: ""
+  // A wake or sleep request being followed through the status polls, one
+  // fact per stage. wakeStage: "sent" (the packet left this machine) then
+  // "returned" (an authenticated host answered, Steam not ready yet).
+  // sleepStage: "requested" then "unreachable". followNote is the last line
+  // this follower wrote, so it never overwrites a line the owner has moved on to.
+  property string wakeStage: ""
+  property string sleepStage: ""
+  property string followNote: ""
 
   // ---- display ----------------------------------------------------------
   property string selectedOutputId: ""
@@ -141,6 +149,10 @@ Panel {
     }
     return false
   }
+  // The device in "Is the picture on {device}'s display ...". Decky names it
+  // from the device's own name; the protocol gives this client none, so it is
+  // named as the panel's hero names it. steamos-companion-ctl words it the same.
+  readonly property string saveCurrentDeviceName: "the paired SteamOS host"
   readonly property bool modalOpen: confirmationKind !== ""
   readonly property bool paired: localData.paired === true
 
@@ -173,8 +185,15 @@ Panel {
   // a failure — both stay quiet and render dimmed instead.
   readonly property bool statusNeedsAttention: statusState === "offline"
   readonly property bool statusUncertain: statusState === "stale" || statusState === "checking"
+  // The host as the tooltip names it: the address the pairing pinned, since
+  // the protocol carries no device name this client could show instead.
+  function endpointHostText(endpoint) {
+    var found = /^https:\/\/(\[[0-9A-Fa-f:.]{2,45}\]|[A-Za-z0-9_.-]{1,253})(?::[0-9]{1,5})?\/?$/.exec(String(endpoint || ""))
+    return found ? found[1] : ""
+  }
+  readonly property string tooltipHost: endpointHostText(localData.endpoint) || "paired host"
   readonly property string barTooltip: paired
-    ? "SteamOS Companion · " + statusWord + " · " + lastObservation
+    ? "SteamOS Companion · " + tooltipHost + " · " + statusWord + " · " + lastObservation
     : "SteamOS Companion · not paired"
 
   readonly property var outputList: outputsData && outputsData.outputs ? outputsData.outputs : []
@@ -763,11 +782,13 @@ Panel {
         root.connectionState = "unreachable"
         root.connectionDetail = friendlyError(result.error)
         root.pollIntervalMs = Math.min(6000, Math.max(2000, root.pollIntervalMs * 2))
+        root.followRequest(false, false)
         return
       }
       root.connectionState = "ok"
       root.connectionDetail = ""
       root.statusData = result.data
+      root.followRequest(true, !!result.data && result.data.steam_bridge === "ready")
       root.adoptScopes(result.data)
       var advertisedWake = result.data && result.data.wake_target
       if (advertisedWake && advertisedWake.mac) {
@@ -985,6 +1006,40 @@ Panel {
       root.displayOrderDraftStale = true
   }
 
+  // Wake and sleep are claims about three different things: a packet leaving
+  // this machine, an authenticated answer from the pinned host, and Steam being
+  // ready. None implies the next, and a dropped connection after a sleep request
+  // is not proof of sleep. Each poll can advance one stage and says only what
+  // that poll showed.
+  function followNoteSet(text) {
+    root.actionMessage = text
+    root.followNote = text
+  }
+
+  function followNoteMay() {
+    return root.actionMessage === "" || root.actionMessage === root.followNote
+  }
+
+  function followRequest(reachable, steamReady) {
+    if (root.wakeStage === "sent" && reachable) {
+      root.wakeStage = steamReady ? "" : "returned"
+      if (root.followNoteMay())
+        root.followNoteSet(steamReady
+          ? "Authenticated host response received · Steam ready"
+          : "Authenticated host response received · Steam not ready yet")
+    } else if (root.wakeStage === "returned" && reachable && steamReady) {
+      root.wakeStage = ""
+      if (root.followNoteMay()) root.followNoteSet("Authenticated host response received · Steam ready")
+    }
+    if (root.sleepStage === "requested" && !reachable) {
+      root.sleepStage = "unreachable"
+      if (root.followNoteMay()) root.followNoteSet("Sleep requested; host unreachable")
+    } else if (root.sleepStage === "unreachable" && reachable) {
+      root.sleepStage = ""
+      if (root.followNoteMay()) root.followNoteSet("Authenticated host response received")
+    }
+  }
+
   function refreshAfterAction(message) {
     root.actionMessage = message || "Requested; waiting for host observation"
     root.operationPolls = 0
@@ -1048,12 +1103,36 @@ Panel {
     return keys
   }
 
+  // Which of the three preview controls are on screen. The key list and the
+  // rows both ask these, so a control can never be listed that is not drawn
+  // (the keyboard would fire it blind) or drawn that is not listed (the
+  // keyboard could never reach it).
+  //
+  // Preview sits beside the selected mode unless that mode is the current one;
+  // the exception is the running preview's own mode, which reads "Preview Ns".
+  function previewStartShown(mode) {
+    if (!mode || root.selectedModeId !== mode.id) return false
+    var isCurrent = !!root.currentOutput && mode.id === root.currentOutput.current_mode_id
+    return !isCurrent || root.previewMatchesMode(mode)
+  }
+
+  // Save and Revert follow the previewed mode when it is in the list, and
+  // otherwise sit in their own card while the mode rows are still updating.
+  function previewCardShown() {
+    return !!root.previewData && !root.previewMatchesVisibleMode()
+  }
+
   function displayRowKeys() {
     var keys = root.displayOrderRowKeys()
     if (root.outputList.length > 1) keys.push("output")
     keys.push("save-current")
+    if (root.previewCardShown()) keys.push("preview:keep", "preview:revert")
     var modes = root.visibleModeList
-    for (var index = 0; index < modes.length; index++) keys.push("mode:" + modes[index].id)
+    for (var index = 0; index < modes.length; index++) {
+      keys.push("mode:" + modes[index].id)
+      if (root.previewStartShown(modes[index])) keys.push("preview:start")
+      if (root.previewMatchesMode(modes[index])) keys.push("preview:keep", "preview:revert")
+    }
     keys.push("restore")
     return keys
   }
@@ -1065,7 +1144,6 @@ Panel {
     keys.push("pair")
     if (root.pendingPairing) keys.push("cancel")
     if (root.paired) keys.push("journal")
-    keys.push("wake")
     keys.push("revoke")
     keys.push("forget")
     return keys
@@ -1115,6 +1193,10 @@ Panel {
         && !!root.currentOutput.current_mode_id && !root.previewData
         && !root.previewMutationBusy && !root.actionBusy
       if (key === "restore") return root.paired && root.displayAllowed() && !root.previewData && !root.actionBusy
+      if (key === "preview:start") return root.displayAllowed() && !root.actionBusy
+        && (!root.previewData || root.previewMatchesMode(root.selectedMode))
+      if (key === "preview:keep") return root.displayAllowed() && !!root.previewData && !root.previewMutationBusy
+      if (key === "preview:revert") return root.displayAllowed() && !!root.previewData && !root.previewMutationBusy
       return key.indexOf("mode:") === 0
     }
     if (key === "discover") return !root.actionBusy
@@ -1122,7 +1204,6 @@ Panel {
     if (key === "pair") return !root.actionBusy && !root.pendingPairing && !root.pairingBusy
     if (key === "cancel") return !!root.pendingPairing
     if (key === "journal") return root.paired && root.journalMayRead(root.journalStartedMs, root.nowMs)
-    if (key === "wake") return !!root.wakeMac && !root.actionBusy
     if (key === "revoke") return root.paired && !root.actionBusy
     if (key === "forget") return root.paired && !root.actionBusy
     return false
@@ -1202,6 +1283,9 @@ Panel {
       else if (key === "output") cycleOutput()
       else if (key === "save-current") openSaveCurrentConfirmation()
       else if (key === "restore") restoreWorking()
+      else if (key === "preview:start") root.previewModeFor(root.selectedMode)
+      else if (key === "preview:keep") root.keepPreview()
+      else if (key === "preview:revert") root.revertPreview()
       else if (key.indexOf("mode:") === 0) root.selectedModeId = key.slice(5)
     } else {
       if (key === "discover") discoverHosts()
@@ -1215,7 +1299,6 @@ Panel {
       else if (key === "pair") startPairing()
       else if (key === "cancel") cancelPairing()
       else if (key === "journal") root.requestJournal()
-      else if (key === "wake") wakeHost()
       else if (key === "revoke") openConfirmation("revoke")
       else if (key === "forget") openConfirmation("forget")
     }
@@ -1238,9 +1321,9 @@ Panel {
     if (confirmationKind === "restart") return "Restart the exact paired SteamOS host? Any running session will be interrupted."
     if (confirmationKind === "shutdown") return "Shut down the exact paired SteamOS host? Wake later requires a powered NIC and the automatically detected LAN path."
     if (confirmationKind === "display-order-restart") return "Save this display order and restart Gaming Mode on the paired SteamOS host? Running games and the Steam UI will close, and the current stream may disconnect."
-    if (confirmationKind === "save-current") return "Is the picture on the paired host's display correct right now? This is what Restore saved display will return to."
+    if (confirmationKind === "save-current") return "Is the picture on " + root.saveCurrentDeviceName + "'s display correct right now? This is what Restore saved display will return to."
     if (confirmationKind === "revoke") return "Revoke this client's host credential? The Omarchy copy will be forgotten after the host accepts the request."
-    return "Forget this local pairing? This does not revoke the host credential while offline."
+    return "Forget this host? Omarchy first asks the host to revoke this client's credential. If the host cannot be reached, only the local pairing is removed and the credential stays valid until it is revoked in Decky."
   }
 
   function confirmConfirmation() {
@@ -1254,6 +1337,8 @@ Panel {
           root.operationData = result.data && result.data.operation
           var label = kind === "suspend" ? "Suspend" : kind === "restart" ? "Restart" : "Shutdown"
           refreshAfterAction(label + " requested; physical transition is not confirmed by the method response")
+          // Follow only a sleep: the line above is then the one the next poll may replace.
+          if (kind === "suspend") { root.wakeStage = ""; root.sleepStage = "requested"; root.followNote = root.actionMessage }
         }
       })
     } else if (kind === "display-order-restart") {
@@ -1268,15 +1353,36 @@ Panel {
         if (!result.ok) { root.actionMessage = friendlyError(result.error); return }
         remote("forget", {}, function(localResult) {
           root.resetPairedState()
-          root.actionMessage = localResult.ok ? "Credential revoked and local pairing forgotten" : "Credential revoked; local state needs attention"
+          root.actionMessage = root.forgetNotice(result, localResult.ok)
         })
       })
     } else {
-      remote("forget", {}, function(result) {
-        root.resetPairedState()
-        root.actionMessage = result.ok ? "Local pairing forgotten; host credential remains until revoked" : friendlyError(result.error)
+      // Forgetting removes this machine's copy of the credential, so the host is
+      // asked to drop its own first: a credential left valid on a host nobody is
+      // watching is the one outcome to avoid. The local pairing goes either way,
+      // so Forget can never be stuck behind an unreachable host, and the notice
+      // says which of the two happened.
+      remote("revoke", {}, function(revokeResult) {
+        remote("forget", {}, function(localResult) {
+          root.resetPairedState()
+          root.actionMessage = root.forgetNotice(revokeResult, localResult.ok)
+        })
       })
     }
+  }
+
+  // What happened to the host's copy of the credential, in plain words. Only an
+  // accepted revocation (or a host that no longer knows the credential) means the
+  // host side is closed; everything else names what is left to do in Decky.
+  function forgetNotice(revokeResult, localOk) {
+    var tail = localOk ? "" : " Local state needs attention."
+    if (revokeResult && revokeResult.ok === true)
+      return localOk ? "Credential revoked and local pairing forgotten" : "Credential revoked; local state needs attention"
+    if (revokeResult && revokeResult.status === 401)
+      return "The host no longer accepts this credential, so there was nothing left to revoke. Local pairing forgotten." + tail
+    if (revokeResult && revokeResult.status)
+      return "The host did not accept the revocation (" + root.friendlyError(revokeResult.error) + "). Only the local pairing was forgotten; the credential stays valid until it is revoked in Decky." + tail
+    return "Host unreachable (" + root.friendlyError(revokeResult ? revokeResult.error : "") + "), so only the local pairing was forgotten. Revoke this client in Decky to invalidate the credential on the host." + tail
   }
 
   function resetPairedState() {
@@ -1380,8 +1486,12 @@ Panel {
             root.actionMessage = root.friendlyError(result.error)
         } else if (result.status === 409 && /preview/i.test(String(result.error || ""))) {
           root.actionMessage = "A display preview is active; keep or revert it first"
-        } else if (result.status === 409) {
+        } else if (result.status === 409 && /stale|no longer advertised/i.test(String(result.error || ""))) {
           root.actionMessage = "The display target changed; refresh and try again"
+        } else if (result.status === 409) {
+          // Another mutation in flight, or a read-back the host could not confirm:
+          // neither is a changed target, so the host's own words stand.
+          root.actionMessage = root.friendlyError(result.error)
         } else if (result.status === 503) {
           root.actionMessage = "Steam display bridge is unavailable"
         } else if (result.status === 400) {
@@ -1434,7 +1544,9 @@ Panel {
       if (!result.ok) root.actionMessage = friendlyError(result.error)
       else {
         root.pollIntervalMs = 2000
-        root.actionMessage = "Packet sent; waiting for pinned host response and Steam readiness"
+        root.sleepStage = ""
+        root.wakeStage = "sent"
+        root.followNoteSet("Wake packet sent — waiting for host")
       }
     })
   }
@@ -2629,8 +2741,11 @@ Panel {
     root.pairingRetryUntilMs = 0
     root.pairingBusy = false
     root.actionMessage = "Cancelling the pairing request…"
+    // The host is asked to cancel too. When it does not confirm, the helper's
+    // notice says what is left for the owner to do in Decky.
     remote("pair-cancel", {}, function(result) {
-      root.actionMessage = result.ok ? "Pairing request cancelled" : root.friendlyError(result.error)
+      if (!result.ok) root.actionMessage = root.friendlyError(result.error)
+      else root.actionMessage = result.data && result.data.notice ? String(result.data.notice) : "Pairing request cancelled"
     })
   }
 
@@ -2673,6 +2788,11 @@ Panel {
 
   function onClosed() {
     pollGeneration++
+    // Nothing polls while the panel is closed, so a claim being followed would
+    // go stale: the next open starts from what it observes.
+    wakeStage = ""
+    sleepStage = ""
+    followNote = ""
     editingPairing = false
     confirmationKind = ""
     root.saveCurrentTarget = null
@@ -3134,7 +3254,7 @@ Panel {
       Column {
         width: parent.width
         spacing: Style.space(4)
-        visible: !!root.previewData && !root.previewMatchesVisibleMode()
+        visible: root.previewCardShown()
         PanelSectionHeader { text: "Active preview"; width: parent.width }
         BodyText {
           width: parent.width
@@ -3151,24 +3271,22 @@ Panel {
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
           }
-          Button {
+          CursorButton {
             id: activeApplyButton
             width: Style.space(112)
+            ownerView: "display"
+            rowKey: "preview:keep"
             text: "Save"
             iconText: "✓"
-            leftAlign: true
-            enabled: root.displayAllowed() && !root.previewMutationBusy
-            opacity: enabled ? 1.0 : 0.45
             onClicked: root.keepPreview()
           }
-          Button {
+          CursorButton {
             id: activeRevertButton
             width: Style.space(92)
+            ownerView: "display"
+            rowKey: "preview:revert"
             text: "Revert"
             iconText: "↩"
-            leftAlign: true
-            enabled: root.displayAllowed() && !root.previewMutationBusy
-            opacity: enabled ? 1.0 : 0.45
             onClicked: root.revertPreview()
           }
         }
@@ -3219,15 +3337,14 @@ Panel {
                 root.setCursor(root.rowIndexOf("mode:" + modelData.id))
               }
             }
-            Button {
+            CursorButton {
               id: modePreviewButton
               width: Style.space(120)
-              visible: isSelected && (!isCurrent || root.previewMatchesMode(modelData))
+              visible: root.previewStartShown(modelData)
+              ownerView: "display"
+              rowKey: "preview:start"
               text: root.previewMatchesMode(modelData) ? "Preview " + root.countdownSeconds + "s" : "Preview"
               iconText: "◇"
-              leftAlign: true
-              enabled: root.displayAllowed() && !root.actionBusy && (!root.previewData || root.previewMatchesMode(modelData))
-              opacity: enabled ? 1.0 : 0.45
               onClicked: root.previewModeFor(modelData)
             }
           }
@@ -3242,24 +3359,22 @@ Panel {
               verticalAlignment: Text.AlignVCenter
               elide: Text.ElideRight
             }
-            Button {
+            CursorButton {
               id: applyButton
               width: Style.space(112)
+              ownerView: "display"
+              rowKey: "preview:keep"
               text: "Save"
               iconText: "✓"
-              leftAlign: true
-              enabled: root.displayAllowed() && !!root.previewData && !root.previewMutationBusy
-              opacity: enabled ? 1.0 : 0.45
               onClicked: root.keepPreview()
             }
-            Button {
+            CursorButton {
               id: revertButton
               width: Style.space(92)
+              ownerView: "display"
+              rowKey: "preview:revert"
               text: "Revert"
               iconText: "↩"
-              leftAlign: true
-              enabled: root.displayAllowed() && !root.previewMutationBusy
-              opacity: enabled ? 1.0 : 0.45
               onClicked: root.revertPreview()
             }
           }
@@ -3295,13 +3410,13 @@ Panel {
         width: parent.width
         ownerView: "display"
         rowKey: "restore"
-        text: "Restore last saved mode"
+        text: "Restore last known-good mode"
         iconText: "↺"
         onClicked: root.restoreWorking()
       }
       HintText {
         width: parent.width
-        text: "Save confirms the visible preview and stores that mode as the last known-good mode. Restore last saved mode returns to it if the current picture is wrong."
+        text: "Save confirms the visible preview and stores that mode as the last known-good mode. Restore last known-good mode returns to it if the current picture is wrong."
       }
       BodyText {
         visible: !!(root.outputsData && root.outputsData.reason)
@@ -3752,7 +3867,7 @@ Panel {
         width: parent.width
         ownerView: "settings"
         rowKey: "forget"
-        text: "Forget local pairing"
+        text: "Forget host"
         iconText: "×"
         onClicked: root.openConfirmation("forget")
       }

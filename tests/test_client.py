@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import io
 import ipaddress
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
-from client import client_core
+from client import cli, client_core
 
 
 PIN = "sha256:" + "a" * 64
@@ -596,6 +599,239 @@ class ClientTests(unittest.TestCase):
         with self.assertRaises(client_core.ClientError):
             client_core.validate_wake_values("00:11:22:33:44:55", "eth0;touch")
         self.assertEqual(client_core.validate_wake_values("00-11-22-33-44-55", "enp5s0"), ("001122334455", "enp5s0"))
+
+
+
+class ScriptedTransport(FakeTransport):
+    """Answers each request from a list; an exception in the list is raised instead of returned."""
+
+    created: list[tuple[str, str, str | None]] = []
+
+    def __init__(self, endpoint, pin, token=None, timeout=5):
+        super().__init__(endpoint, pin, token, timeout)
+        self.created.append((endpoint, pin, token))
+
+    def request(self, method, path, body=None):
+        self.requests.append((method, path, body))
+        answer = self.responses.pop(0)
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
+
+
+PAIRING_ID = "pair-fixture0001xxxxxxxxxxxxx"
+SESSION = "fixture-token-0001-xxxxxxxxxxxxxxxxxxxxxxxx"
+PENDING_ANSWER = {"protocol_version": 1, "state": "pending", "pairing_id": PAIRING_ID, "expires_at": 4_000_000_000, "pairing_session": SESSION}
+DECKY_PAIR_CANCEL = Path("/home/hvo/Projects/steamos-companion-decky/protocol/fixtures/contract/pair-cancel")
+
+
+class PairCancelTests(unittest.TestCase):
+    """Cancelling a request asks the host to cancel it, and the local record goes whatever the host says."""
+
+    HOST = {"endpoint": "https://192.168.50.24:18443", "certificate_fingerprint": PIN}
+
+    def setUp(self):
+        self._directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._directory.cleanup)
+        self.core = client_core.ClientCore(self._directory.name)
+        ScriptedTransport.requests = []
+        ScriptedTransport.created = []
+
+    def started(self, answer: dict = PENDING_ANSWER) -> None:
+        ScriptedTransport.responses = [answer]
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport):
+            self.core.pair_start(self.HOST, scopes=["status.read"])
+        ScriptedTransport.requests = []
+        ScriptedTransport.created = []
+
+    def cancel(self, *answers: Any) -> dict:
+        ScriptedTransport.responses = list(answers)
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport):
+            return self.core.pair_cancel()
+
+    def test_the_hosts_name_for_the_request_is_kept_privately_and_never_shown(self):
+        self.started()
+        saved = json.loads(self.core.pending.path.read_text())
+        self.assertEqual(PAIRING_ID, saved["pairing_id"])
+        self.assertEqual(SESSION, saved["pairing_session"])
+        view = self.core.inspect()["pending_pairing"]
+        self.assertNotIn("pairing_id", view)
+        self.assertNotIn("pairing_session", view)
+        # A later poll that does not repeat it does not lose it.
+        ScriptedTransport.responses = [{"protocol_version": 1, "state": "pending"}]
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport):
+            self.core.pair_poll()
+        self.assertEqual(PAIRING_ID, json.loads(self.core.pending.path.read_text())["pairing_id"])
+        # And the poll body still carries no host-side identity: the nonce is the proof.
+        self.assertNotIn("pairing_id", ScriptedTransport.requests[0][2])
+
+    def test_cancel_posts_the_hosts_cancel_shape_with_no_credential_and_clears_the_record(self):
+        self.started()
+        pending = json.loads(self.core.pending.path.read_text())
+        result = self.cancel({"protocol_version": 1, "state": "cancelled", "pairing_id": PAIRING_ID})
+        self.assertEqual({"state": "cancelled", "acknowledged": True, "server_request_may_remain": False}, result)
+        self.assertEqual([("POST", "/v1/pair/cancel", {
+            "pairing_id": PAIRING_ID,
+            "verification_nonce": pending["verification_nonce"],
+            "client_id": pending["client_id"],
+            "pairing_session": SESSION,
+        })], ScriptedTransport.requests)
+        # Pinned to the host it was started against, and proven by the nonce: no bearer token exists to send.
+        self.assertEqual([("https://192.168.50.24:18443", PIN, None)], ScriptedTransport.created)
+        self.assertFalse(os.path.lexists(self.core.pending.path))
+        self.assertIsNone(self.core.inspect()["pending_pairing"])
+
+    def test_without_a_session_the_body_has_exactly_the_three_required_fields(self):
+        self.started({"protocol_version": 1, "state": "pending", "pairing_id": PAIRING_ID, "expires_at": 4_000_000_000})
+        self.cancel({"protocol_version": 1, "state": "cancelled", "pairing_id": PAIRING_ID})
+        self.assertEqual({"pairing_id", "verification_nonce", "client_id"}, set(ScriptedTransport.requests[0][2]))
+
+    def test_the_body_is_what_deckys_pinned_cancel_exchange_sends(self):
+        shape = {"pairing_id", "verification_nonce", "client_id", "pairing_session"}
+        if DECKY_PAIR_CANCEL.exists():
+            fixture = json.loads((DECKY_PAIR_CANCEL / "cancelled.json").read_text())
+            self.assertEqual("/v1/pair/cancel", fixture["request"]["path"])
+            self.assertEqual(shape, set(fixture["request"]["body"]))
+            self.assertEqual({}, fixture["request"]["headers"], "no Authorization and no channel binding on this route")
+        self.started()
+        self.cancel({"protocol_version": 1, "state": "cancelled"})
+        self.assertEqual(shape, set(ScriptedTransport.requests[0][2]))
+
+    def test_every_answer_of_the_host_still_clears_the_local_record_and_says_what_is_left(self):
+        gone = client_core.PAIR_CANCEL_UNCONFIRMED
+        approved = client_core.PAIR_CANCEL_APPROVED
+        cases = [
+            # answer, state, acknowledged, may remain, notice
+            ({"protocol_version": 1, "state": "cancelled"}, "cancelled", True, False, None),
+            ({"protocol_version": 1, "state": "rejected"}, "rejected", True, False, None),
+            ({"protocol_version": 1, "state": "expired"}, "expired", True, False, None),
+            (client_core.ClientError("pairing is not available", status=404), "expired", True, False, None),
+            (client_core.ClientError("pairing has expired", status=410), "expired", True, False, None),
+            (client_core.ClientError("pairing was already approved", status=409), "cancelled", False, True, approved),
+            (client_core.ClientError("pairing session is invalid", status=401), "cancelled", False, True, gone),
+            (client_core.ClientError("request rate limit exceeded", status=429, retry_after=3.0), "cancelled", False, True, gone),
+            (client_core.ClientError("host rejected the request", status=503), "cancelled", False, True, gone),
+            (client_core.ClientError("host connection failed: timed out", unknown=True), "cancelled", False, True, gone),
+            (client_core.ClientError("host certificate does not match the pinned identity", unknown=True), "cancelled", False, True, gone),
+            ({"protocol_version": 1, "state": "approved"}, "cancelled", False, True, gone),
+            ({"protocol_version": 1, "state": "something-new"}, "cancelled", False, True, gone),
+            ({"protocol_version": 1}, "cancelled", False, True, gone),
+        ]
+        for answer, state, acknowledged, remains, notice in cases:
+            with self.subTest(answer=str(answer)):
+                self.core.pending.clear()
+                self.started()
+                result = self.cancel(answer)
+                expected = {"state": state, "acknowledged": acknowledged, "server_request_may_remain": remains}
+                if notice:
+                    expected["notice"] = notice
+                self.assertEqual(expected, result)
+                self.assertEqual(1, len(ScriptedTransport.requests))
+                self.assertFalse(os.path.lexists(self.core.pending.path), "the local pending.json is cleared whatever the host said")
+
+    def test_an_unreachable_host_does_not_leave_cancel_stuck_or_claim_the_host_cancelled(self):
+        self.started()
+        result = self.cancel(client_core.ClientError("host connection failed: [Errno 113] No route to host", unknown=True))
+        self.assertFalse(result["acknowledged"])
+        self.assertTrue(result["server_request_may_remain"])
+        self.assertIn("reject it in Decky", result["notice"])
+        self.assertIn("within two minutes", result["notice"])
+        self.assertFalse(os.path.lexists(self.core.pending.path))
+
+    def test_a_record_that_never_learned_the_hosts_name_cannot_be_cancelled_there_and_says_so(self):
+        self.started({"protocol_version": 1, "state": "pending"})
+        self.assertNotIn("pairing_id", json.loads(self.core.pending.path.read_text()))
+        result = self.cancel()
+        self.assertEqual([], ScriptedTransport.requests)
+        self.assertEqual({"state": "cancelled", "acknowledged": False, "server_request_may_remain": True, "notice": client_core.PAIR_CANCEL_UNCONFIRMED}, result)
+        self.assertFalse(os.path.lexists(self.core.pending.path))
+
+    def test_a_full_payload_request_is_cancelled_here_only(self):
+        ScriptedTransport.responses = [{"protocol_version": 1, "state": "pending", "pairing_id": "pair-test"}]
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport):
+            self.core.pair_payload_start(payload(), scopes=["status.read"])
+        ScriptedTransport.requests = []
+        result = self.cancel()
+        self.assertEqual([], ScriptedTransport.requests)
+        self.assertEqual({"state": "cancelled", "acknowledged": False, "server_request_may_remain": False}, result)
+        self.assertFalse(os.path.lexists(self.core.pending.path))
+
+    def test_cancelling_with_nothing_pending_calls_no_host(self):
+        self.assertEqual({"state": "cancelled", "acknowledged": False, "server_request_may_remain": False}, self.cancel())
+        self.assertEqual([], ScriptedTransport.requests)
+
+    def test_the_helper_action_and_the_cli_command_reach_the_same_cancel(self):
+        self.started()
+        ScriptedTransport.responses = [{"protocol_version": 1, "state": "cancelled"}]
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport):
+            result = self.core.run({"action": "pair-cancel"})
+        self.assertTrue(result["acknowledged"])
+        self.started()
+        ScriptedTransport.responses = [{"protocol_version": 1, "state": "cancelled"}]
+        out = io.StringIO()
+        with mock.patch.object(client_core, "PinnedTransport", ScriptedTransport), mock.patch.object(cli, "ClientCore", lambda: self.core), contextlib.redirect_stdout(out):
+            code = cli.main(["--json", "pair", "cancel"])
+        self.assertEqual(0, code)
+        self.assertEqual({"ok": True, "data": {"state": "cancelled", "acknowledged": True, "server_request_may_remain": False}}, json.loads(out.getvalue()))
+        self.assertEqual([("POST", "/v1/pair/cancel")], [request[:2] for request in ScriptedTransport.requests])
+
+    def test_a_learned_pairing_name_that_is_not_a_plain_identifier_is_refused_on_load(self):
+        self.started()
+        saved = json.loads(self.core.pending.path.read_text())
+        for bad in ("pair id", "../x", "a" * 129, 5, ["x"]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(client_core.ClientError):
+                    self.core.pending.save({**saved, "pairing_id": bad})
+
+    def test_the_real_transport_sends_the_cancel_unauthenticated_and_without_a_channel_binding(self):
+        self.assertIsNotNone(client_core.PATH_RE.fullmatch("/v1/pair/cancel"))
+        sent: dict[str, Any] = {}
+
+        class Socket:
+            def getpeercert(self, binary_form=False):
+                return b"certificate"
+
+        class Response:
+            status = 200
+
+            def read(self, _limit):
+                return b'{"protocol_version":1,"state":"cancelled","pairing_id":"' + PAIRING_ID.encode() + b'"}'
+
+            def getheader(self, _name, default=None):
+                return default
+
+        class Connection:
+            def __init__(self):
+                self.sock = Socket()
+                self.headers = {}
+
+            def connect(self):
+                return None
+
+            def putrequest(self, method, path, **_kwargs):
+                sent["request"] = (method, path)
+
+            def putheader(self, key, value):
+                self.headers[key] = value
+
+            def endheaders(self, body=None):
+                sent["body"] = json.loads(body)
+                sent["headers"] = self.headers
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                return None
+
+        self.started()
+        with mock.patch.object(client_core.http.client, "HTTPSConnection", return_value=Connection()), mock.patch.object(client_core, "fingerprint_der", return_value=PIN):
+            result = self.core.pair_cancel()
+        self.assertEqual(("POST", "/v1/pair/cancel"), sent["request"])
+        self.assertTrue(result["acknowledged"])
+        self.assertNotIn("Authorization", sent["headers"])
+        self.assertNotIn("X-SteamOS-Companion-TLS-Binding", sent["headers"])
+        self.assertEqual({"pairing_id", "verification_nonce", "client_id", "pairing_session"}, set(sent["body"]))
 
 
 if __name__ == "__main__":

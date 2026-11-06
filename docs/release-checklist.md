@@ -1,5 +1,9 @@
 # 0.5.2 release checklist
 
+This is the 0.5.2 snapshot; the client is now 0.5.14 (`manifest.json`). The
+identities and the hardware gates below are as recorded then; the gates still
+apply, and the source changes since are listed in the last section.
+
 ## Automated checks completed
 
 - [x] Client unit tests and contract tests
@@ -113,3 +117,16 @@ hardware recovery rather than a validated release.
 Install the Omarchy plugin from the reviewed repository or copy the source into
 Omarchy's plugin directory with the documented `rsync` workflow. No ZIP or
 checksum sidecar is generated or required.
+
+## Doc-audit follow-ups (source and workstation tests only)
+
+- [x] Preview, Save and Revert are cursor rows: reachable and activatable from the keyboard, gated by the one `rowEnabled` expression
+- [x] Settings lists only the rows it draws (the phantom `wake` row is gone; Wake is on Host)
+- [x] A test compares each view's listed row keys with the rows its component draws
+- [x] Display view says "Restore last known-good mode"; the bar tooltip names the host address, the status word and the last observation
+- [x] `steamos-companion-ctl` takes `--request-id` on every command that changes the host; request-ID reuse and the 0/1/2 exit-code matrix are tested
+- [x] `pair cancel` asks the host to cancel (`POST /v1/pair/cancel`) and always clears the local request
+- [x] Forget host asks the host to revoke first, then removes the local pairing and says what is left
+- [x] Wake reports packet sent, authenticated host returned and Steam ready separately; "Sleep requested; host unreachable" after a dropped suspend
+- [x] The six save-current paths and the rule that `visible: true` is sent only after the owner's assertion are tested
+- [ ] None of this ran against a real host or on a device; the hardware gates above are unchanged

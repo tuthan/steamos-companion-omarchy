@@ -67,13 +67,20 @@ BarWidget {
     bar: root.bar
     text: ""
     iconComponent: Component {
-      Image {
-        anchors.fill: parent
-        source: Qt.resolvedUrl("assets/steamos-companion-icon.svg")
-        sourceSize.width: width
-        sourceSize.height: height
-        fillMode: Image.PreserveAspectFit
-        smooth: true
+      // BarIconContent only binds a default size onto non-Image roots. A root Image
+      // with anchors.fill: parent stays 0×0 while the parent Loader has no size, so
+      // the bar icon never paints. A sized Item matches other plugins (wrapper + leaf).
+      Item {
+        width: Style.bar.iconCanvas
+        height: Style.bar.iconCanvas
+        Image {
+          anchors.fill: parent
+          source: Qt.resolvedUrl("assets/steamos-companion-icon.svg")
+          sourceSize.width: width
+          sourceSize.height: height
+          fillMode: Image.PreserveAspectFit
+          smooth: true
+        }
       }
     }
     // Attention is reserved for something actually observed: a paired host that

@@ -8,7 +8,7 @@ import json
 import sys
 from typing import Any
 
-from .client_core import ClientCore, ClientError, access_view, credential_scopes, validate_endpoint
+from .client_core import ClientCore, ClientError, _new_request_id, access_view, credential_scopes, validate_endpoint
 
 
 _SECRET_FIELDS = {
@@ -18,14 +18,39 @@ _SECRET_FIELDS = {
     "verification_nonce",
     "certificate_fingerprint",
 }
+# One wording across clients: Decky asks "Is the picture on {device}'s display ...", and
+# this client has no device name from the protocol, so the device is the paired host.
 _CONFIRM_TEXT = (
-    "Is the picture on the paired host's display correct right now? "
+    "Is the picture on the paired SteamOS host's display correct right now? "
     "This is what Restore saved display will return to."
 )
 
 
 class _ArgumentError(Exception):
     pass
+
+
+def _request_id_argument(value: str) -> str:
+    try:
+        return _new_request_id(value)
+    except ClientError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def _add_request_id(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--request-id",
+        type=_request_id_argument,
+        help="name this request, so repeating the command with the same id and arguments returns the original operation instead of running it again",
+    )
+
+
+def _with_request_id(request: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+    """Name the request, when the caller asked to, so the host can recognise a retry of it."""
+    request_id = getattr(args, "request_id", None)
+    if request_id is not None:
+        request["request_id"] = request_id
+    return request
 
 
 class _JsonArgumentParser(argparse.ArgumentParser):
@@ -116,17 +141,22 @@ def _parser() -> argparse.ArgumentParser:
     save.add_argument("--generation", required=True, type=int)
     save.add_argument("--yes", action="store_true", help="skip the prompt after checking the picture")
     save.add_argument("--acknowledged", action="store_true", help="confirm the visible-picture assertion")
+    _add_request_id(save)
     preview = display_commands.add_parser("preview", help="preview an advertised mode for the host deadline")
     preview.add_argument("--output-id", required=True)
     preview.add_argument("--mode-id", required=True)
     preview.add_argument("--generation", required=True, type=int)
+    _add_request_id(preview)
     keep = display_commands.add_parser("keep", help="keep the active preview after checking the picture")
     keep.add_argument("--preview-id")
     keep.add_argument("--yes", action="store_true")
     keep.add_argument("--acknowledged", action="store_true")
-    display_commands.add_parser("revert", help="restore the active preview baseline")
+    _add_request_id(keep)
+    revert = display_commands.add_parser("revert", help="restore the active preview baseline")
+    _add_request_id(revert)
     restore = display_commands.add_parser("restore", help="restore the saved recovery mode")
     restore.add_argument("--source", choices=("verified", "preview"), default="verified")
+    _add_request_id(restore)
     display_commands.add_parser("order", help="read the Gaming Mode output order")
     display_commands.add_parser("link-facts", help="read the advisory DRM link facts (resolutions only; older hosts report none)")
     order_save = display_commands.add_parser("order-save", help="save host-issued output keys")
@@ -135,12 +165,15 @@ def _parser() -> argparse.ArgumentParser:
     order_save.add_argument("--restart", action="store_true")
     order_save.add_argument("--yes", action="store_true")
     order_save.add_argument("--acknowledged", action="store_true")
-    display_commands.add_parser("order-reset", help="restore automatic Gaming Mode ordering")
+    _add_request_id(order_save)
+    order_reset = display_commands.add_parser("order-reset", help="restore automatic Gaming Mode ordering")
+    _add_request_id(order_reset)
 
     power = commands.add_parser("power", help="request a fixed Steam power action")
     power.add_argument("action", choices=("suspend", "restart", "shutdown"))
     power.add_argument("--yes", action="store_true")
     power.add_argument("--acknowledged", action="store_true")
+    _add_request_id(power)
 
     wake = commands.add_parser("wake", help="send Wake-on-LAN to the saved host target")
     wake.add_argument("--mac")
@@ -149,7 +182,7 @@ def _parser() -> argparse.ArgumentParser:
     sunshine = commands.add_parser("sunshine", help="inspect or recover Sunshine")
     sunshine_commands = sunshine.add_subparsers(dest="sunshine_command", required=True)
     sunshine_commands.add_parser("status")
-    sunshine_commands.add_parser("recover")
+    _add_request_id(sunshine_commands.add_parser("recover"))
 
     journal = commands.add_parser("journal", help="read operation records")
     journal_commands = journal.add_subparsers(dest="journal_command", required=True)
@@ -226,27 +259,27 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
         if action == "save-current":
             core.require_scope("save-current")
             _confirmed(args, _CONFIRM_TEXT)
-            return core.run({
+            return core.run(_with_request_id({
                 "action": "save-current",
                 "output_id": args.output_id,
                 "generation": args.generation,
                 "visible": True,
-            })
+            }, args))
         if action == "preview":
-            return core.run({
+            return core.run(_with_request_id({
                 "action": "preview",
                 "output_id": args.output_id,
                 "mode_id": args.mode_id,
                 "generation": args.generation,
-            })
+            }, args))
         if action == "keep":
             core.require_scope("confirm")
-            _confirmed(args, "Can you see the picture on the paired host's display? Keeping it saves this mode.")
-            return core.run({"action": "confirm", "preview_id": _preview_id(core, args.preview_id), "visible": True})
+            _confirmed(args, "Can you see the picture on the paired SteamOS host's display? Keeping it saves this mode.")
+            return core.run(_with_request_id({"action": "confirm", "preview_id": _preview_id(core, args.preview_id), "visible": True}, args))
         if action == "revert":
-            return core.run({"action": "restore", "source": "preview"})
+            return core.run(_with_request_id({"action": "restore", "source": "preview"}, args))
         if action == "restore":
-            return core.run({"action": "restore", "source": args.source})
+            return core.run(_with_request_id({"action": "restore", "source": args.source}, args))
         if action == "order":
             return core.run({"action": "display-order"})
         if action == "link-facts":
@@ -256,17 +289,17 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
             if args.restart:
                 core.require_scope("display-order-restart")
                 _confirmed(args, "Save this display order and restart Gaming Mode on the paired host?")
-            return core.run({
+            return core.run(_with_request_id({
                 "action": "display-order-restart" if args.restart else "display-order-save",
                 "output_keys": keys,
                 "generation": args.generation,
-            })
+            }, args))
         if action == "order-reset":
-            return core.run({"action": "display-order-reset"})
+            return core.run(_with_request_id({"action": "display-order-reset"}, args))
     if command == "power":
         core.require_scope("power")
         _confirmed(args, f"{args.action.title()} the exact paired SteamOS host?")
-        return core.run({"action": args.action})
+        return core.run(_with_request_id({"action": args.action}, args))
     if command == "wake":
         mac = args.mac
         interface = args.interface
@@ -281,7 +314,7 @@ def _dispatch(args: argparse.Namespace, core: ClientCore) -> dict[str, Any]:
         if args.sunshine_command == "status":
             status = core.run({"action": "status"})
             return {"protocol_version": status.get("protocol_version"), "sunshine": status.get("sunshine")}
-        return core.run({"action": "sunshine-restart"})
+        return core.run(_with_request_id({"action": "sunshine-restart"}, args))
     if command == "journal":
         if args.journal_command == "list":
             return core.run({"action": "operations"})

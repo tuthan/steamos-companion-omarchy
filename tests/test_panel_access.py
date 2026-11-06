@@ -466,7 +466,7 @@ process.stdout.write(JSON.stringify({seen: root.seen, refreshed: root.refreshed}
             {"state": dict(base), "calls": [["refresh", []]], "invoke": [[0, {"ok": True, "data": view_only}]]},
             {"state": dict(base), "calls": [["refresh", []]], "invoke": [[0, {"ok": False, "error": "host connection failed: [Errno 111] Connection refused", "unknown": False}]]},
         ]
-        out = run_node(cases, sources=function_sources("refresh"), stubs=["enqueueHelper", "friendlyError", "refreshDetails", "adoptScopes"], watch=["statusData", "connectionState"])
+        out = run_node(cases, sources=function_sources("refresh"), stubs=["enqueueHelper", "friendlyError", "refreshDetails", "adoptScopes", "followRequest"], watch=["statusData", "connectionState"])
         adopted = [[args for name, args in item["recorded"] if name == "adoptScopes"] for item in out]
         self.assertEqual([[[view_only]], []], adopted)
         self.assertIsNone(out[1]["state"]["statusData"])
@@ -544,13 +544,25 @@ class SourceTests(unittest.TestCase):
         self.assertLess(host.index('rowKey: "sunshine"'), host.index("root.powerReason()"))
 
     def test_every_preview_button_checks_display_and_there_is_no_other_way_to_start_one(self):
+        # Preview, Save and Revert are cursor rows: the row's one expression in rowEnabled gates both the
+        # control and the keyboard, and it holds the Display scope check.
         source = panel_source()
+        enabled = function_source("rowEnabled")
         for needle in (
-            "enabled: root.displayAllowed() && !root.actionBusy && (!root.previewData || root.previewMatchesMode(modelData))",
-            "enabled: root.displayAllowed() && !!root.previewData && !root.previewMutationBusy",
+            'if (key === "preview:start") return root.displayAllowed() && !root.actionBusy',
+            'if (key === "preview:keep") return root.displayAllowed() && !!root.previewData && !root.previewMutationBusy',
+            'if (key === "preview:revert") return root.displayAllowed() && !!root.previewData && !root.previewMutationBusy',
         ):
-            self.assertEqual(1, source.count(needle), needle)
-        self.assertEqual(3, source.count("enabled: root.displayAllowed() && !root.previewMutationBusy"), "Save and Revert of the active preview, and Revert beside the mode")
+            self.assertEqual(1, enabled.count(needle), needle)
+        # Every control that starts, keeps or reverts a preview is such a row, never a plain Button with its own gate.
+        for handler, key, count in (("previewModeFor(modelData)", "preview:start", 1), ("keepPreview()", "preview:keep", 2), ("revertPreview()", "preview:revert", 2)):
+            clicks = [match.start() for match in re.finditer(rf"onClicked: root\.{re.escape(handler)}\n", source)]
+            self.assertEqual(count, len(clicks), handler)
+            for at in clicks:
+                nearest_cursor = source.rindex("CursorButton {", 0, at)
+                nearest_plain = max(match.start() for match in re.finditer(r"(?<![A-Za-z])Button \{", source[:at]))
+                self.assertGreater(nearest_cursor, nearest_plain, handler)
+                self.assertIn(f'rowKey: "{key}"', source[nearest_cursor:at])
         self.assertEqual(1, len(re.findall(r'remote\("preview"', source)))
         self.assertEqual(1, len(re.findall(r'remote\("confirm"', source)))
 
@@ -577,6 +589,480 @@ class SourceTests(unittest.TestCase):
         unscoped = {"revoke", "forget", "wake", "discover", "pair", "pair-start", "pair-cancel", "configure"}
         literal = set(re.findall(r'\bremote\("([a-z-]+)"', source))
         self.assertEqual(literal, {"power", "sunshine-restart", "restore", "preview", "confirm", "save-current", "display-order-reset"} | unscoped)
+
+
+# ---- keyboard rows, what each view renders, and the wording of wake, sleep and forget ----------------------------------
+
+def component_source(name: str) -> str:
+    """One `Component { id: name ... }` block of Panel.qml, up to the next component."""
+    body = panel_source().split(f"id: {name}\n", 1)[1]
+    return body.split("\n  Component {", 1)[0]
+
+
+def property_expression(name: str) -> str:
+    """The binding of a `readonly property` that spans a few lines, up to the next declaration."""
+    found = re.search(rf"readonly property \w+ {name}: (.*?)\n(?=\n|  readonly property|  property|  function)", panel_source(), re.S)
+    assert found, name
+    return found.group(1)
+
+
+MODES = [
+    {"id": "1", "width": 1920, "height": 1080, "refresh_hz": 60},
+    {"id": "2", "width": 3840, "height": 2160, "refresh_hz": 60},
+    {"id": "3", "width": 1280, "height": 720, "refresh_hz": 60},
+]
+LISTED_PREVIEW = {"preview_id": "p1", "target_mode": {"id": "2", "width": 3840, "height": 2160, "refresh_hz": 60}}
+UNLISTED_PREVIEW = {"preview_id": "p1", "target_mode": {"id": "9", "width": 800, "height": 600, "refresh_hz": 60}}
+KEY_FUNCTIONS = (
+    "hostRowKeys", "displayRowKeys", "settingsRowKeys", "rowKeys", "displayOrderRowKeys", "displayOrderOutputKey", "previewStartShown", "previewCardShown",
+    "previewMatchesMode", "previewMatchesVisibleMode", "previewTargetIsListed", "sunshineRestartAvailable",
+)
+
+
+def keyed_state(scopes: Any = FULL, **changes: Any) -> dict:
+    """A panel in which every optional row would be drawn."""
+    state = permissive_state(
+        scopes,
+        visibleModeList=MODES,
+        selectedModeId="2",
+        selectedMode=MODES[1],
+        currentOutput={"id": "1", "current_mode_id": "1", "generation": 4},
+        displayOrderRows=[{"output_key": "a"}, {"output_key": "b"}],
+        discoveryData={"hosts": [{"endpoint": "https://10.0.0.5:18443"}]},
+        pendingPairing={"client_id": "c1"},
+        modalOpen=False,
+        editingPairing=False,
+        cursorActive=True,
+        cursorKey="",
+        cursorIndex=0,
+        journalStartedMs=0,
+        nowMs=0,
+    )
+    state.update(changes)
+    return state
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is required to run the Panel.qml key functions")
+class RenderedRowTests(unittest.TestCase):
+    """The keyboard may address exactly the rows a view draws: no phantom key, no unreachable control."""
+
+    def keys(self, view: str, **changes: Any) -> list[str]:
+        item = run_node([{"state": keyed_state(view=view, **changes), "calls": [["rowKeys", []]]}], sources=function_sources(*KEY_FUNCTIONS))[0]
+        self.assertNotIn("error", item["results"][0], item)
+        return item["results"][0]["value"]
+
+    def drawn(self, component: str) -> tuple[set[str], set[str]]:
+        text = component_source(component)
+        prefixes = set(re.findall(r'rowKey: "([^"]+)" \+', text))
+        literals = set(re.findall(r'rowKey: "([^"]+)"(?! \+)', text))
+        return literals, prefixes
+
+    def assert_same(self, view: str, component: str, listed: set[str]) -> None:
+        literals, prefixes = self.drawn(component)
+        static = {key for key in listed if not any(key.startswith(prefix) for prefix in prefixes)}
+        self.assertEqual(literals, static, f"{view}: the keys the keyboard can reach and the rows the view draws differ")
+        for prefix in prefixes:
+            self.assertTrue(any(key.startswith(prefix) for key in listed), f"{view}: {prefix} rows are drawn but never listed")
+
+    def test_each_view_lists_the_rows_it_draws_and_no_others(self):
+        self.assert_same("host", "hostComponent", set(self.keys("host")))
+        self.assert_same("settings", "settingsComponent", set(self.keys("settings")))
+        # Display draws the preview controls in one of two places, depending on whether the previewed mode is listed.
+        listed = set(self.keys("display")) | set(self.keys("display", previewData=LISTED_PREVIEW)) | set(self.keys("display", previewData=UNLISTED_PREVIEW))
+        self.assert_same("display", "displayComponent", listed)
+
+    def test_settings_has_no_wake_row_and_the_host_view_has_one(self):
+        self.assertNotIn("wake", self.keys("settings"))
+        self.assertIn("wake", self.keys("host"))
+        self.assertNotIn('rowKey: "wake"', component_source("settingsComponent"))
+        self.assertIn('rowKey: "wake"', component_source("hostComponent"))
+        source = function_source("activateCursor").split("} else {", 1)
+        self.assertNotIn('"wake"', source[-1], "the Settings branch of activateCursor has nothing to wake")
+        self.assertNotIn('"wake"', function_source("rowEnabled").split("if (key === \"discover\")", 1)[1])
+
+    def test_preview_save_and_revert_follow_the_previewed_mode(self):
+        order = self.keys("display", previewData=LISTED_PREVIEW)
+        at = order.index("mode:2")
+        self.assertEqual(["mode:2", "preview:start", "preview:keep", "preview:revert", "mode:3"], order[at:at + 5])
+        self.assertEqual(1, order.count("preview:keep"))
+
+    def test_a_preview_whose_mode_is_not_listed_keeps_its_own_card_with_save_and_revert(self):
+        order = self.keys("display", previewData=UNLISTED_PREVIEW)
+        self.assertEqual(1, order.count("preview:keep"))
+        self.assertEqual(1, order.count("preview:revert"))
+        self.assertLess(order.index("preview:keep"), order.index("mode:1"), "the card sits above the mode rows")
+        # The selected mode still draws its Preview button, but a preview is already running and it is not that mode's.
+        self.assertIn("preview:start", order)
+        enabled = run_node(
+            [{"state": keyed_state(FULL, view="display", previewData=UNLISTED_PREVIEW), "calls": [["rowEnabled", ["preview:start"]]]}],
+            sources=function_sources(*GATE_FUNCTIONS, "previewMatchesMode", "previewTargetIsListed"),
+        )[0]["results"][0]
+        self.assertEqual(False, enabled["value"])
+
+    def test_preview_is_offered_beside_a_selected_mode_that_is_not_the_current_one(self):
+        self.assertEqual(1, self.keys("display").count("preview:start"))
+        self.assertEqual(["mode:2", "preview:start"], self.keys("display")[self.keys("display").index("mode:2"):][:2])
+        current = self.keys("display", selectedModeId="1", selectedMode=MODES[0])
+        self.assertNotIn("preview:start", current, "the current mode cannot be previewed")
+        self.assertEqual([], [key for key in self.keys("display") if key in ("preview:keep", "preview:revert")], "nothing to save or revert without a preview")
+
+    def activate(self, key: str, view: str, scopes: Any = FULL, **changes: Any) -> list[tuple[str, list]]:
+        keys = self.keys(view, **changes)
+        self.assertIn(key, keys)
+        stubs = ["previewModeFor", "keepPreview", "revertPreview", "restoreWorking", "wakeHost", "openConfirmation", "restartSunshine", "moveDisplayOrder", "saveDisplayOrder", "resetDisplayOrder",
+                 "refreshDisplayOrder", "cycleOutput", "openSaveCurrentConfirmation", "discoverHosts", "selectDiscoveryHost", "startPairing", "cancelPairing", "requestJournal", "syncCursorKey"]
+        state = keyed_state(scopes, view=view, cursorKey=key, cursorIndex=keys.index(key), **changes)
+        item = run_node([{"state": state, "calls": [["activateCursor", []]]}], sources=function_sources(*KEY_FUNCTIONS, *GATE_FUNCTIONS, "journalMayRead", "journalMinGapMs", "activateCursor"), stubs=stubs)[0]
+        self.assertNotIn("error", item["results"][0], item)
+        return [(name, args) for name, args in item["recorded"] if name != "syncCursorKey"]
+
+    def test_enter_on_preview_save_and_revert_reaches_the_same_function_as_a_click(self):
+        self.assertEqual([("previewModeFor", [MODES[1]])], self.activate("preview:start", "display"))
+        self.assertEqual([("keepPreview", [])], self.activate("preview:keep", "display", previewData=LISTED_PREVIEW))
+        self.assertEqual([("revertPreview", [])], self.activate("preview:revert", "display", previewData=LISTED_PREVIEW))
+        self.assertEqual([("keepPreview", [])], self.activate("preview:keep", "display", previewData=UNLISTED_PREVIEW))
+        self.assertEqual([("revertPreview", [])], self.activate("preview:revert", "display", previewData=UNLISTED_PREVIEW))
+
+    def test_the_preview_rows_need_the_display_scope_and_a_free_lane(self):
+        for scopes in (VIEW_ONLY, POWER_ONLY, []):
+            for key, changes in (("preview:start", {}), ("preview:keep", {"previewData": LISTED_PREVIEW}), ("preview:revert", {"previewData": LISTED_PREVIEW})):
+                with self.subTest(scopes=scopes, key=key):
+                    self.assertEqual([], self.activate(key, "display", scopes, **changes))
+        # Held Enter: a Save or Revert already in flight, or any other mutation queued, answers nothing.
+        for key in ("preview:keep", "preview:revert"):
+            self.assertEqual([], self.activate(key, "display", previewData=LISTED_PREVIEW, previewMutationBusy=True), key)
+        self.assertEqual([], self.activate("preview:start", "display", actionBusy=True))
+        # Save and Revert have nothing to act on once the preview is gone from under the cursor.
+        enabled = run_node(
+            [{"state": keyed_state(FULL, view="display"), "calls": [["rowEnabled", ["preview:keep"]], ["rowEnabled", ["preview:revert"]]]}],
+            sources=function_sources(*GATE_FUNCTIONS, "previewMatchesMode", "previewTargetIsListed"),
+        )[0]["results"]
+        self.assertEqual([False, False], [item["value"] for item in enabled])
+
+    def test_a_busy_lane_disables_every_row_that_changes_the_host_so_a_held_key_cannot_repeat_it(self):
+        # The installed key catcher does not filter auto-repeat, so a held Enter reaches activateCursor again and again.
+        # What stops the repeat is the row's own gate, which flips the moment the first press is dispatched.
+        mutating = [(view, key) for view, key, _scope in ROWS if key not in ("mode:3", "output", "display-order:up:b", "display-order:down:a")]
+        mutating.append(("display", "preview:start"))  # Save and Revert hold the same line with previewMutationBusy, tested above
+        cases = [{"state": keyed_state(FULL, view=view, actionBusy=True), "calls": [["rowEnabled", [key]]]} for view, key in mutating]
+        out = run_node(cases, sources=function_sources(*GATE_FUNCTIONS, "previewMatchesMode", "previewTargetIsListed"))
+        for (view, key), item in zip(mutating, out):
+            with self.subTest(row=f"{view}/{key}"):
+                self.assertEqual(False, item["results"][0]["value"])
+
+    def test_the_other_display_rows_still_fire_from_the_keyboard(self):
+        self.assertEqual([("restoreWorking", [])], self.activate("restore", "display"))
+        self.assertEqual([("wakeHost", [])], self.activate("wake", "host"))
+        self.assertEqual([("discoverHosts", [])], self.activate("discover", "settings"))
+
+    def test_no_row_of_settings_can_wake_the_host(self):
+        for key in self.keys("settings"):
+            with self.subTest(key=key):
+                self.assertNotIn("wakeHost", [name for name, _args in self.activate(key, "settings")])
+
+
+FOLLOW_FUNCTIONS = ("followNoteSet", "followNoteMay", "followRequest")
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is required to run the Panel.qml wake and sleep functions")
+class FollowWordingTests(unittest.TestCase):
+    """Wake and sleep claim one fact at a time: a packet sent, an authenticated host returned, Steam ready."""
+
+    def steps(self, state: dict, steps: list[tuple[bool, bool]]) -> list[tuple[str, str, str]]:
+        cases = [{"state": dict(state), "calls": [["followRequest", list(step)] for step in steps[:count]]} for count in range(1, len(steps) + 1)]
+        out = run_node(cases, sources=function_sources(*FOLLOW_FUNCTIONS), watch=["actionMessage", "wakeStage", "sleepStage"])
+        return [(item["state"]["actionMessage"], item["state"]["wakeStage"], item["state"]["sleepStage"]) for item in out]
+
+    WAKE_SENT = "Wake packet sent — waiting for host"
+    RETURNED = "Authenticated host response received · Steam not ready yet"
+    READY = "Authenticated host response received · Steam ready"
+    SLEEP = "Sleep requested; host unreachable"
+
+    def test_a_sent_packet_is_not_a_returned_host_and_neither_is_steam_ready(self):
+        sent = {"actionMessage": self.WAKE_SENT, "followNote": self.WAKE_SENT, "wakeStage": "sent", "sleepStage": ""}
+        seen = self.steps(sent, [(False, False), (False, False), (True, False), (True, False), (True, True), (True, True)])
+        self.assertEqual([self.WAKE_SENT, self.WAKE_SENT], [message for message, _w, _s in seen[:2]], "unreachable polls claim nothing")
+        self.assertEqual([("sent", "")] * 2, [(wake, sleep) for _m, wake, sleep in seen[:2]])
+        self.assertEqual((self.RETURNED, "returned"), seen[2][:2], "an authenticated answer is a fact on its own")
+        self.assertEqual((self.RETURNED, "returned"), seen[3][:2], "Steam is still not ready, and nothing new is claimed")
+        self.assertEqual((self.READY, ""), seen[4][:2])
+        self.assertEqual((self.READY, ""), seen[5][:2], "the follower is finished and says nothing more")
+
+    def test_a_host_that_answers_with_steam_ready_at_once_skips_the_middle_stage(self):
+        sent = {"actionMessage": self.WAKE_SENT, "followNote": self.WAKE_SENT, "wakeStage": "sent", "sleepStage": ""}
+        self.assertEqual([(self.READY, "")], [item[:2] for item in self.steps(sent, [(True, True)])])
+
+    def test_a_sleep_request_then_a_dropped_connection_says_so_and_proves_nothing_more(self):
+        asked = {"actionMessage": "Suspend requested; physical transition is not confirmed by the method response", "followNote": "Suspend requested; physical transition is not confirmed by the method response", "wakeStage": "", "sleepStage": "requested"}
+        seen = self.steps(asked, [(True, True), (False, False), (False, False), (True, True)])
+        self.assertTrue(seen[0][0].startswith("Suspend requested"), "a poll that still answers is not a disconnect")
+        self.assertEqual(("requested", self.SLEEP, "unreachable"), (seen[0][2], seen[1][0], seen[1][2]))
+        self.assertEqual(self.SLEEP, seen[2][0])
+        self.assertEqual(("Authenticated host response received", ""), (seen[3][0], seen[3][2]))
+
+    def test_a_line_the_owner_has_moved_on_to_is_never_overwritten(self):
+        for stage, step in (({"wakeStage": "sent", "sleepStage": ""}, (True, True)), ({"wakeStage": "", "sleepStage": "requested"}, (False, False))):
+            with self.subTest(stage=stage):
+                state = {"actionMessage": "Restore requested; waiting for a host readback", "followNote": self.WAKE_SENT, **stage}
+                seen = self.steps(state, [step])[0]
+                self.assertEqual("Restore requested; waiting for a host readback", seen[0])
+                self.assertNotEqual(stage, {"wakeStage": seen[1], "sleepStage": seen[2]}, "the stage still advances")
+
+    def test_nothing_is_followed_unless_a_request_started_it(self):
+        idle = {"actionMessage": "", "followNote": "", "wakeStage": "", "sleepStage": ""}
+        for step in ((True, True), (False, False)):
+            self.assertEqual([("", "", "")], self.steps(idle, [step]))
+
+    def request(self, function: str, state: dict, sources: list[str], stubs: list[str], result: dict, calls: list | None = None) -> dict:
+        case = {"state": state, "calls": calls or [[function, []]], "invoke": [[0, result]]}
+        return run_node([case], sources=sources, stubs=stubs, watch=["actionMessage", "wakeStage", "sleepStage", "followNote"])[0]
+
+    def test_the_wake_button_starts_the_follower_with_the_packet_fact_only(self):
+        sources = function_sources("wakeHost", *FOLLOW_FUNCTIONS)
+        item = self.request("wakeHost", {"wakeMac": "001122334455", "pollIntervalMs": 6000, "actionMessage": "", "wakeStage": "", "sleepStage": "unreachable", "followNote": ""}, sources, ["remote", "setView"], {"ok": True, "data": {"packet_sent": True}})
+        self.assertEqual({"actionMessage": self.WAKE_SENT, "wakeStage": "sent", "sleepStage": "", "followNote": self.WAKE_SENT}, item["state"])
+        failed = self.request("wakeHost", {"wakeMac": "001122334455", "actionMessage": "", "wakeStage": "", "sleepStage": "", "followNote": ""}, sources + [function_source("friendlyError")], ["remote", "setView"], {"ok": False, "error": "Wake-on-LAN packet was not sent: x", "unknown": False})
+        self.assertEqual("", failed["state"]["wakeStage"], "a packet that did not leave is not followed")
+
+    def test_a_suspend_request_starts_the_sleep_follower_and_a_restart_does_not(self):
+        base = permissive_state(FULL, confirmationKind="suspend", wakeStage="sent", sleepStage="", followNote="")
+        sources = function_sources(*GATE_FUNCTIONS, "confirmConfirmation", "refreshAfterAction")
+        stubs = ["remote", "friendlyError", "openConfirmation"]
+        item = self.request("confirmConfirmation", base, sources, stubs, {"ok": True, "data": {"operation": {"id": "op-1"}}})
+        self.assertEqual(("requested", ""), (item["state"]["sleepStage"], item["state"]["wakeStage"]))
+        self.assertEqual(item["state"]["actionMessage"], item["state"]["followNote"], "the next poll may replace this line")
+        for kind in ("restart", "shutdown"):
+            other = self.request("confirmConfirmation", {**base, "confirmationKind": kind}, sources, stubs, {"ok": True, "data": {"operation": {"id": "op-1"}}})
+            self.assertEqual("", other["state"]["sleepStage"], kind)
+
+    def test_the_follower_is_driven_by_the_status_poll_and_stops_with_the_panel(self):
+        refresh = function_source("refresh")
+        self.assertEqual(1, refresh.count("root.followRequest(false, false)"))
+        self.assertEqual(1, refresh.count('root.followRequest(true, !!result.data && result.data.steam_bridge === "ready")'))
+        closed = function_source("onClosed")
+        for stage in ('wakeStage = ""', 'sleepStage = ""', 'followNote = ""'):
+            self.assertIn(stage, closed)
+
+
+FORGET_FUNCTIONS = ("confirmConfirmation", "forgetNotice", "friendlyError")
+UNREACHABLE = {"ok": False, "error": "host connection failed: [Errno 113] No route to host", "unknown": True}
+FORGOTTEN = {"ok": True, "data": {"forgotten": True}}
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is required to run the Panel.qml forget functions")
+class ForgetTests(unittest.TestCase):
+    """Forgetting a host asks it to revoke first and never leaves the host's copy behind without saying so."""
+
+    def forget(self, kind: str, revoked: dict, local: dict = FORGOTTEN, answered: int = 2) -> dict:
+        case = {"state": permissive_state(FULL, confirmationKind=kind, actionMessage=""), "calls": [["confirmConfirmation", []]], "invoke": [[0, revoked], [1, local]][:answered]}
+        item = run_node([case], sources=function_sources(*FORGET_FUNCTIONS), stubs=["remote", "resetPairedState", "refreshAfterAction"], watch=["actionMessage"])[0]
+        self.assertNotIn("error", item["results"][0], item)
+        return item
+
+    def calls(self, item: dict) -> list[str]:
+        return [args[0] for name, args in item["recorded"] if name == "remote"]
+
+    def test_the_host_is_asked_to_revoke_before_anything_is_forgotten_locally(self):
+        waiting = self.forget("forget", {"ok": True}, answered=0)
+        self.assertEqual(["revoke"], self.calls(waiting), "the local pairing is still there while the host is being asked")
+        self.assertEqual([], [name for name, _args in waiting["recorded"] if name == "resetPairedState"])
+        done = self.forget("forget", {"ok": True, "data": {}})
+        self.assertEqual(["revoke", "forget"], self.calls(done))
+        self.assertEqual(1, [name for name, _args in done["recorded"]].count("resetPairedState"))
+        self.assertEqual("Credential revoked and local pairing forgotten", done["state"]["actionMessage"])
+
+    def test_an_unreachable_host_still_lets_the_owner_forget_and_the_notice_says_what_is_left(self):
+        for revoked in (UNREACHABLE, {"ok": False, "error": "host connection failed: timed out", "unknown": True}, {"ok": False, "error": "x"}):
+            with self.subTest(revoked=revoked):
+                item = self.forget("forget", revoked)
+                self.assertEqual(["revoke", "forget"], self.calls(item))
+                message = item["state"]["actionMessage"]
+                self.assertRegex(message, r"^Host unreachable \(.+\), so only the local pairing was forgotten\.")
+                self.assertIn("Revoke this client in Decky", message)
+        self.assertIn("(No route to the host)", self.forget("forget", UNREACHABLE)["state"]["actionMessage"])
+
+    def test_a_host_that_answered_but_refused_is_named_and_the_credential_is_not_called_revoked(self):
+        for status, error in ((403, "forbidden"), (409, "mutation_conflict"), (500, "boom"), (429, "request rate limit exceeded")):
+            with self.subTest(status=status):
+                message = self.forget("forget", {"ok": False, "error": error, "status": status, "unknown": False})["state"]["actionMessage"]
+                self.assertIn(f"The host did not accept the revocation ({error})", message)
+                self.assertIn("the credential stays valid until it is revoked in Decky", message)
+                self.assertNotIn("Credential revoked", message)
+
+    def test_a_credential_the_host_no_longer_knows_leaves_nothing_to_revoke(self):
+        message = self.forget("forget", {"ok": False, "error": "credential has already been revoked", "status": 401, "unknown": False})["state"]["actionMessage"]
+        self.assertEqual("The host no longer accepts this credential, so there was nothing left to revoke. Local pairing forgotten.", message)
+
+    def test_a_local_store_that_cannot_be_cleared_is_reported_in_every_outcome(self):
+        broken = {"ok": False, "error": "private client state is unavailable", "unknown": False}
+        for revoked in ({"ok": True}, UNREACHABLE, {"ok": False, "error": "x", "status": 409}, {"ok": False, "error": "x", "status": 401}):
+            with self.subTest(revoked=revoked):
+                self.assertRegex(self.forget("forget", revoked, broken)["state"]["actionMessage"], r"[Ll]ocal state needs attention")
+
+    def test_revoke_stays_strict_and_forgets_only_what_the_host_accepted(self):
+        refused = self.forget("revoke", {"ok": False, "error": "host connection failed: timed out", "unknown": True}, answered=1)
+        self.assertEqual(["revoke"], self.calls(refused))
+        self.assertEqual("Host did not respond in time", refused["state"]["actionMessage"])
+        accepted = self.forget("revoke", {"ok": True})
+        self.assertEqual(["revoke", "forget"], self.calls(accepted))
+        self.assertEqual("Credential revoked and local pairing forgotten", accepted["state"]["actionMessage"])
+
+    def test_the_confirmation_says_what_forget_does_before_it_does_it(self):
+        text = function_source("confirmMessage")
+        self.assertIn("Omarchy first asks the host to revoke this client's credential", text)
+        self.assertIn("only the local pairing is removed and the credential stays valid until it is revoked in Decky", text)
+        self.assertNotIn("Forget this local pairing", panel_source())
+        self.assertIn('text: "Forget host"', component_source("settingsComponent"))
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is required to run the Panel.qml wording functions")
+class LabelTests(unittest.TestCase):
+    def test_the_display_view_restores_the_last_known_good_mode_in_the_docs_words(self):
+        display = component_source("displayComponent")
+        self.assertIn('text: "Restore last known-good mode"', display)
+        self.assertIn("Restore last known-good mode returns to it if the current picture is wrong.", display)
+        self.assertNotIn("last saved mode", panel_source())
+        self.assertIn('text: "Restore last known-good display"', component_source("hostComponent"))
+
+    def tooltip(self, **state: Any) -> str:
+        script = """
+const fs = require('node:fs');
+const vm = require('node:vm');
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+const out = input.cases.map(state => {
+  const root = Object.assign({}, state);
+  vm.createContext(root); root.root = root;
+  vm.runInContext(input.source, root);
+  root.tooltipHost = vm.runInContext(input.host, root);
+  return vm.runInContext(input.tooltip, root);
+});
+process.stdout.write(JSON.stringify(out));
+"""
+        return script
+
+    def test_the_bar_tooltip_names_the_host_the_status_and_when_it_was_last_observed(self):
+        script = self.tooltip()
+        cases = [
+            {"paired": True, "localData": {"endpoint": "https://192.168.50.24:18443"}, "statusWord": "Ready", "lastObservation": "last observed 12:00:03"},
+            {"paired": True, "localData": {"endpoint": "https://[fe80::1]:18443"}, "statusWord": "Status stale", "lastObservation": "last observed 12:00:03"},
+            {"paired": True, "localData": {"endpoint": "https://deck.local:18443"}, "statusWord": "Host unreachable", "lastObservation": "not observed"},
+            {"paired": True, "localData": {}, "statusWord": "Checking host", "lastObservation": "not observed"},
+            {"paired": True, "localData": {"endpoint": "javascript:alert(1)"}, "statusWord": "Ready", "lastObservation": "not observed"},
+            {"paired": True, "localData": {"endpoint": "https://a b:1"}, "statusWord": "Ready", "lastObservation": "not observed"},
+            {"paired": False, "localData": {}, "statusWord": "Not paired", "lastObservation": "not observed"},
+        ]
+        host = property_expression("tooltipHost")
+        run = subprocess.run(["node", "-e", script], input=json.dumps({"source": function_source("endpointHostText"), "host": host, "tooltip": property_expression("barTooltip"), "cases": cases}), capture_output=True, text=True, timeout=20)
+        self.assertEqual(0, run.returncode, run.stderr[-400:])
+        self.assertEqual([
+            "SteamOS Companion · 192.168.50.24 · Ready · last observed 12:00:03",
+            "SteamOS Companion · [fe80::1] · Status stale · last observed 12:00:03",
+            "SteamOS Companion · deck.local · Host unreachable · not observed",
+            "SteamOS Companion · paired host · Checking host · not observed",
+            "SteamOS Companion · paired host · Ready · not observed",
+            "SteamOS Companion · paired host · Ready · not observed",
+            "SteamOS Companion · not paired",
+        ], json.loads(run.stdout))
+
+
+# ---- Save current display as recovery mode (doc 21): the confirmation, the host's answers, and the assertion ----------
+
+# The host's own answers, as Decky's `display-save-current` contract fixtures give them (the pinned bundle here
+# vendors only part of the contract, so they are written out; the test below compares them with Decky's when it is present).
+SAVE_ANSWERS = {
+    "mutation-conflict": (409, "a display preview owns the mutation lane"),
+    "stale-target": (409, "display target generation is stale"),
+    "bridge-unavailable": (503, "Steam display bridge is unavailable"),
+    "readback-not-confirmed": (409, "current display mode could not be read back"),
+    "visible-false": (400, "visible must be true to save the current display mode"),
+}
+DECKY_SAVE_CURRENT = Path("/home/hvo/Projects/steamos-companion-decky/protocol/fixtures/contract/display-save-current")
+SAVE_FUNCTIONS = (*GATE_FUNCTIONS, "saveCurrentDisplay", "openSaveCurrentConfirmation", "friendlyError", "confirmMessage", "confirmConfirmation", "modeLabel")
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is required to run the Panel.qml save-current functions")
+class SaveCurrentPanelTests(unittest.TestCase):
+    TARGET = {"output_id": "1", "generation": 4}
+
+    def save(self, result: dict, **changes: Any) -> dict:
+        state = permissive_state(FULL, currentOutput={"id": "1", "current_mode_id": "2", "generation": 4}, visibleModeList=[{"id": "2"}], currentSavedProfile=None, **changes)
+        case = {"state": state, "calls": [["saveCurrentDisplay", [self.TARGET]]], "invoke": [[0, result]]}
+        item = run_node([case], sources=function_sources(*SAVE_FUNCTIONS), stubs=["remote", "refreshAfterAction", "openConfirmation"], watch=["actionMessage", "operationData", "previewMutationBusy"])[0]
+        self.assertNotIn("error", item["results"][0], item)
+        return item
+
+    def test_each_answer_of_the_host_is_worded_for_what_it_says(self):
+        wanted = {
+            "mutation-conflict": "A display preview is active; keep or revert it first",
+            "stale-target": "The display target changed; refresh and try again",
+            "bridge-unavailable": "Steam display bridge is unavailable",
+            "visible-false": "Save current was rejected; the explicit confirmation did not reach the host correctly",
+            # Not a changed target: the host could not read the mode back, and its own words say so.
+            "readback-not-confirmed": "current display mode could not be read back",
+        }
+        for name, (status, message) in SAVE_ANSWERS.items():
+            with self.subTest(name):
+                item = self.save({"ok": False, "error": message, "status": status, "unknown": False})
+                self.assertEqual(wanted[name], item["state"]["actionMessage"])
+                self.assertEqual(False, item["state"]["previewMutationBusy"], "the lane is freed whatever the host said")
+
+    def test_a_conflict_that_is_not_a_preview_is_not_called_a_changed_target(self):
+        message = self.save({"ok": False, "error": "another mutation is still in progress", "status": 409, "unknown": False})["state"]["actionMessage"]
+        self.assertEqual("another mutation is still in progress", message)
+        message = self.save({"ok": False, "error": "output is no longer advertised", "status": 409, "unknown": False})["state"]["actionMessage"]
+        self.assertEqual("The display target changed; refresh and try again", message)
+
+    def test_a_lost_answer_is_not_a_failure_and_the_original_operation_is_checked_first(self):
+        message = self.save({"ok": False, "error": "host connection failed: timed out", "unknown": True})["state"]["actionMessage"]
+        self.assertEqual("Result not confirmed; reconnect and check the original operation before retrying", message)
+
+    def test_a_saved_mode_is_reported_with_the_hosts_read_back_and_never_as_a_bare_saved(self):
+        profile = {"mode": {"id": "2", "width": 1920, "height": 1080, "refresh_hz": 60}, "verified_at": "2026-09-13T12:00:00Z"}
+        done = self.save({"ok": True, "data": {"operation": {"id": "op-1", "state": "succeeded"}, "profile": profile}})
+        self.assertRegex(done["state"]["actionMessage"], r"^Requested\. Host read-back confirmed the recovery mode: .*verified 2026-09-13T12:00:00Z$")
+        for data in ({"operation": {"id": "op-1", "state": "accepted"}}, {"operation": {"id": "op-1", "state": "succeeded"}}, {}):
+            unconfirmed = self.save({"ok": True, "data": data})["state"]["actionMessage"]
+            self.assertNotIn("confirmed the recovery mode", unconfirmed)
+            self.assertRegex(unconfirmed, r"^Result not confirmed")
+        failed = self.save({"ok": True, "data": {"operation": {"id": "op-1", "state": "failed", "reason": "no"}}})["state"]["actionMessage"]
+        self.assertRegex(failed, r"^Save failed")
+
+    def test_the_assertion_is_sent_only_from_the_confirmation_dialog(self):
+        source = panel_source()
+        # Opening the dialog sends nothing: it records the target and asks.
+        opened = run_node(
+            [{"state": permissive_state(FULL, currentOutput={"id": "1", "current_mode_id": "2", "generation": 4}), "calls": [["openSaveCurrentConfirmation", []]]}],
+            sources=function_sources(*SAVE_FUNCTIONS), stubs=["remote", "refreshAfterAction", "openConfirmation"], watch=["saveCurrentTarget"],
+        )[0]
+        self.assertEqual([("openConfirmation", ["save-current"])], [(name, args[0:1]) for name, args in opened["recorded"]])
+        self.assertEqual({"output_id": "1", "generation": 4}, opened["state"]["saveCurrentTarget"])
+        # `saveCurrentDisplay` is reached from the confirmed branch only, and `visible: true` is written in exactly
+        # two functions: it, and Save of a running preview (the owner has just been asked to verify that picture).
+        self.assertEqual(1, source.count("root.saveCurrentDisplay("))
+        self.assertIn("root.saveCurrentDisplay(target)", function_source("confirmConfirmation").split('kind === "save-current"', 1)[1].split("} else if", 1)[0])
+        holders = {name for name in re.findall(r"\n  function (\w+)\(", source) if "visible: true" in function_source(name)}
+        self.assertEqual({"saveCurrentDisplay", "keepPreview"}, holders)
+        # And a dialog answered Cancel drops the target with nothing sent.
+        self.assertRegex(function_source("cancelConfirmation"), r'root\.saveCurrentTarget = null')
+
+    def test_the_confirmation_reads_as_decky_asks_it_with_the_paired_host_as_the_device(self):
+        asked = run_node(
+            [{"state": {"confirmationKind": "save-current", "saveCurrentDeviceName": "the paired SteamOS host"}, "calls": [["confirmMessage", []]]}],
+            sources=function_sources("confirmMessage"),
+        )[0]["results"][0]["value"]
+        template = "Is the picture on {device}'s display correct right now? This is what Restore saved display will return to."
+        self.assertEqual(template.replace("{device}", "the paired SteamOS host"), asked)
+        self.assertIn('readonly property string saveCurrentDeviceName: "the paired SteamOS host"', panel_source())
+        self.assertIn('confirmText: root.confirmationKind === "save-current" ? "Save as recovery mode" : "Confirm"', panel_source())
+        if DECKY_FRONTEND.exists():
+            text = DECKY_FRONTEND.read_text()
+            self.assertIn("Is the picture on ${identityName()}'s display correct right now? This is what Restore saved display will return to.", text)
+
+    @unittest.skipUnless(DECKY_SAVE_CURRENT.exists(), "the Decky checkout is not present")
+    def test_the_answers_above_are_the_ones_decky_pins(self):
+        for name, (status, message) in SAVE_ANSWERS.items():
+            response = json.loads((DECKY_SAVE_CURRENT / f"{name}.json").read_text())["response"]
+            self.assertEqual((status, message), (response["status"], response["body"]["message"]), name)
 
 if __name__ == "__main__":
     unittest.main()

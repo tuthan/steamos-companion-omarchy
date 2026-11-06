@@ -77,8 +77,23 @@ security-analysis vocabulary, trust graph, glyph assignments, or motion values.
   in the panel. Approval is a sequence of short helper calls, so waiting for
   the owner never occupies the single helper lane, the panel can be closed and
   reopened mid-request, and the pairing secret never travels back out to QML.
-- The first pending response contains a high-entropy pairing session handle.
-  Approval polls use that handle instead of re-deriving the comparison code.
+- The first pending response contains a high-entropy pairing session handle and
+  the host's name for the request. Approval polls use the handle instead of
+  re-deriving the comparison code. Cancel asks the host to cancel the request
+  (`POST /v1/pair/cancel`, proved by the private nonce and the session, with no
+  bearer credential), and removes the local record whatever the host answered:
+  an unreachable host cannot leave Cancel stuck, and the panel says when the
+  host did not confirm. A full-payload request has no nonce and is cancelled
+  here only.
+- Forget asks the host to revoke this client's credential before it removes the
+  local pairing, and removes the local pairing even when the host cannot be
+  reached or refuses, saying which. Revoke is the strict form and removes the
+  local pairing only after the host accepts. A credential is never left behind
+  on the host without the panel saying so.
+- Wake and sleep are claims about separate facts, stated one at a time: a packet
+  left this machine; an authenticated answer came from the pinned host; Steam is
+  ready. After a suspend request, a host that stops answering is "Sleep
+  requested; host unreachable". None of these is rendered as proof of the next.
 - Approval persists the endpoint and certificate pin in the private client
   state. The approved response also carries the host wake MAC; the client
   persists it and chooses its own active sender interface, because host and
