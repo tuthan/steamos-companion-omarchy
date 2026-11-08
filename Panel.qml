@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Panel {
@@ -477,7 +478,7 @@ Panel {
 
   component BodyText: Text {
     textFormat: Text.PlainText
-    color: Color.foreground
+    color: Commons.Color.foreground
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     wrapMode: Text.WordWrap
@@ -485,7 +486,7 @@ Panel {
 
   component HintText: Text {
     textFormat: Text.PlainText
-    color: Color.muted
+    color: Commons.Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
     wrapMode: Text.WordWrap
@@ -2916,7 +2917,7 @@ Panel {
             title: "SteamOS Companion"
             meta: root.hostLabel
             detail: root.statusWord
-            foreground: root.bar ? root.bar.barForeground : Color.foreground
+            foreground: root.bar ? root.bar.barForeground : Commons.Color.foreground
             iconComponent: Component {
               Image {
                 width: Style.font.display
@@ -3396,9 +3397,12 @@ Panel {
         }
         HintText {
           width: parent.width
-          text: "Saved on " + root.outputLabel(root.currentOutput) + ": "
-            + root.modeLabel(root.currentSavedProfile.mode) + " · verified "
-            + String(root.currentSavedProfile.verified_at || "time unavailable")
+          // `visible` does not stop this binding from evaluating, so guard the null profile.
+          text: root.currentSavedProfile
+            ? "Saved on " + root.outputLabel(root.currentOutput) + ": "
+              + root.modeLabel(root.currentSavedProfile.mode) + " · verified "
+              + String(root.currentSavedProfile.verified_at || "time unavailable")
+            : ""
         }
         HintText {
           visible: !!root.previewData
@@ -3508,7 +3512,7 @@ Panel {
         width: parent.width
         textFormat: Text.PlainText
         text: "VERIFICATION CODE\n" + (root.pendingPairing ? root.pendingPairing.pairing_code : "")
-        color: Color.foreground
+        color: Commons.Color.foreground
         font.family: Style.font.family
         font.pixelSize: Style.font.body * 1.35
         font.bold: true
